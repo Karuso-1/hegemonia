@@ -1,0 +1,9 @@
+{
+  "name": "hegemonia",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "hegemonia-db", "database_id": "d55799b5-9b2d-4def-b22c-212230446da4" }
+  ]
+}

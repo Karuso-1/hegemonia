@@ -1,10 +1,10 @@
-// Hegemonía — servidor de partidas (Cloudflare Pages Functions + D1).
+// Hegemonía — servidor de partidas (Cloudflare Worker + D1). Sirve también la web desde /public.
 // Rutas:
 //   GET    /api/games                 → lista de partidas recientes
 //   GET    /api/games/:code[?since=N] → estado de una partida (204 si no ha cambiado desde la versión N)
 //   PUT    /api/games/:code           → guarda { state, baseRev } solo si nadie la cambió antes (409 si hubo choque)
 //   DELETE /api/games/:code           → borra la partida
-// Necesita una base de datos D1 enlazada con el nombre DB. La tabla se crea sola.
+// Base de datos D1 enlazada como DB (ver wrangler.jsonc). La tabla se crea sola.
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -31,12 +31,11 @@ function summarize(s) {
   };
 }
 
-export async function onRequest({ request, env, params }) {
+async function handleApi(request, env, parts) {
   const db = env.DB;
   if (!db) return json({ error: 'Falta enlazar la base de datos D1 con el nombre DB.' }, 500);
   await init(db);
 
-  const parts = Array.isArray(params.path) ? params.path : [params.path].filter(Boolean);
   if (parts[0] !== 'games') return json({ error: 'No encontrado' }, 404);
   const code = parts[1];
   const method = request.method;
@@ -89,3 +88,17 @@ export async function onRequest({ request, env, params }) {
 
   return json({ error: 'Método no permitido' }, 405);
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/')) {
+      try {
+        return await handleApi(request, env, url.pathname.slice(5).split('/').filter(Boolean));
+      } catch (e) {
+        return json({ error: 'Error del servidor' }, 500);
+      }
+    }
+    return env.ASSETS.fetch(request);
+  },
+};
