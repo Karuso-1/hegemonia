@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#18301f">
+<meta name="description" content="Conquista el mundo con tus amigos. Juego de estrategia por turnos en el navegador.">
+<meta property="og:title" content="Hegemonía">
+<meta property="og:description" content="Te han invitado a una partida. Abre el enlace, escribe tu nombre y a conquistar el mundo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%2318301f%22%2F%3E%3Cpath%20d%3D%22M6%2023%2011.8%209h3.6l5.8%2014h-3.6l-1.2-3.2h-6l-1.2%203.2zm5.3-6h4L13.6%2012z%22%20fill%3D%22%23d8b462%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2211%22%20r%3D%223%22%20fill%3D%22%23c9432f%22%2F%3E%3C%2Fsvg%3E">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Hegemonía</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@800&display=swap">
+<style>
+/* Layout: una mesa de juego de fieltro verde pino; el mapa ocupa la mesa y un panel lateral (abajo en móvil) lleva las órdenes. */
+:root {
+  --felt: #18301f;
+  --felt-hi: #22432f;
+  --sea: #1f3c2b;
+  --grat: rgba(241, 232, 212, .06);
+  --land: #3d5a47;
+  --cream: #f1e8d4;
+  --cream-dim: #bdb6a2;
+  --ink: #16231a;
+  --brass: #d8b462;
+  --brass-ink: #2b220a;
+  --line: rgba(241, 232, 212, .15);
+  --card: rgba(9, 22, 14, .38);
+  --danger: #e8846a;
+  --p0: #c9432f; --p0-ink: #fff8ee;
+  --p1: #2f64b4; --p1-ink: #fff8ee;
+  --p2: #dca52d; --p2-ink: #22190a;
+  --p3: #8253ad; --p3-ink: #fff8ee;
+  --p4: #2a2d2f; --p4-ink: #f1e8d4;
+  /* continentes: colores planos */
+  --c-na: #e2c27a;
+  --c-sa: #d98c6c;
+  --c-eu: #93acd0;
+  --c-af: #c7a0cf;
+  --c-as: #a9c487;
+  --c-oc: #7fc2b8;
+  --font-display: "Big Shoulders Stencil Display", "Big Shoulders Stencil", Impact, "Arial Narrow", sans-serif;
+  --font-num: "Big Shoulders Display", "Big Shoulders", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html { box-sizing: border-box; height: 100%; background: var(--felt); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  min-height: 100%; background: var(--felt); color: var(--cream);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+}
+body.ingame { height: 100%; overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.1; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--cream-dim); font-weight: 600; }
+.num { font-family: var(--font-num); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; font-weight: 600; font-size: 15px;
+  transition: background .15s, transform .1s;
+}
+.btn:hover { background: rgba(241, 232, 212, .08); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+.btn.primary:hover { background: #e4c375; }
+.btn.danger { color: var(--danger); border-color: rgba(232, 132, 106, .5); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---------- Lobby ---------- */
+#lobby {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+  display: grid; gap: 28px;
+}
+.hero { display: grid; gap: 14px; position: relative; }
+.hero h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(56px, 13vw, 128px);
+  letter-spacing: .01em; line-height: .86; color: var(--cream);
+}
+.hero h1 span { color: var(--brass); }
+.hero p { max-width: 56ch; color: var(--cream-dim); margin: 0; font-size: 17px; }
+.hero-map { width: 100%; max-width: 100%; height: auto; display: block; border-radius: 14px; background: radial-gradient(ellipse at 50% 45%, var(--felt-hi), var(--felt) 75%); }
+.lobby-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .lobby-grid { grid-template-columns: 380px 1fr; align-items: start; } }
+.sheet { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.sheet h2 { font-family: var(--font-num); font-weight: 800; font-size: 28px; letter-spacing: .02em; text-transform: uppercase; }
+label.field { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+input[type=text] {
+  min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.22);
+  padding: 0 12px; font-size: 16px;
+}
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.swatch {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0;
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.18);
+}
+.swatch[aria-pressed=true] { border-color: var(--cream); box-shadow: 0 0 0 3px var(--felt), 0 0 0 5px var(--brass); }
+.swatch:disabled { opacity: .2; cursor: not-allowed; }
+.goals { display: grid; gap: 8px; }
+.goal { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; }
+.goal input { margin-top: 4px; accent-color: var(--brass); }
+.goal small { display: block; color: var(--cream-dim); font-size: 13px; }
+.games { display: grid; gap: 10px; }
+.game-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center;
+  padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.14);
+}
+.game-card .code { font-family: var(--font-num); font-weight: 800; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; }
+.game-card .meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--cream-dim); font-size: 13px; }
+.state-pill { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.state-pill.lobby { color: var(--brass); border-color: rgba(216,180,98,.5); }
+.state-pill.playing { color: #9fd3b0; border-color: rgba(159,211,176,.45); }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
+.empty { color: var(--cream-dim); padding: 18px; border: 1px dashed var(--line); border-radius: 12px; }
+.note { font-size: 14px; color: var(--cream-dim); }
+.note strong { color: var(--cream); }
+.banner { padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(232,132,106,.45); color: var(--cream); background: rgba(232,132,106,.1); font-size: 14px; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.rules li::marker { font-family: var(--font-num); font-weight: 800; color: var(--brass); }
+.cont-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cont-table td { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.cont-table td:last-child { text-align: right; }
+
+/* ---------- Game ---------- */
+#game { height: 100%; display: flex; flex-direction: column; }
+.bar {
+  display: flex; align-items: center; gap: 10px; min-height: 54px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: 6px; border-bottom: 1px solid var(--line); background: var(--felt);
+}
+.bar .brand { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1; }
+.bar .code { font-family: var(--font-num); font-weight: 800; letter-spacing: .08em; color: var(--cream-dim); text-transform: uppercase; }
+.bar .spacer { flex: 1; }
+.turn-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 6px; border-radius: 999px; background: rgba(0,0,0,.25); font-weight: 600; font-size: 14px; min-width: 0; }
+.turn-chip .dot { width: 18px; height: 18px; }
+.turn-chip span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.board { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mapwrap {
+  position: relative; flex: 1 1 56%; min-height: 220px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, var(--felt-hi), var(--felt) 78%);
+}
+#map { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#map.dragging { cursor: grabbing; }
+.zoom { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: 10px; display: grid; gap: 6px; }
+.zoom button {
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: rgba(16, 32, 22, .82);
+  cursor: pointer; font-size: 20px; line-height: 1; display: grid; place-items: center;
+}
+.panel {
+  flex: 0 1 auto; max-height: 46%; overflow: auto; border-top: 1px solid var(--line); background: var(--felt);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 18px; display: grid; gap: 16px; align-content: start;
+}
+@media (min-width: 900px) {
+  .board { flex-direction: row; }
+  .panel { width: 380px; flex: none; max-height: none; border-top: 0; border-left: 1px solid var(--line); padding-left: 18px; }
+}
+.orders { display: grid; gap: 12px; padding: 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.orders .phase { display: flex; gap: 6px; }
+.orders .phase span { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; color: var(--cream-dim); border: 1px solid var(--line); }
+.orders .phase span.on { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+.orders h3 { font-size: 18px; font-weight: 700; }
+.orders p { margin: 0; color: var(--cream-dim); font-size: 14px; }
+.big-count { font-family: var(--font-num); font-weight: 800; font-size: 44px; line-height: 1; color: var(--brass); }
+.vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; text-align: center; }
+.vs .side { padding: 8px; border-radius: 10px; background: rgba(0,0,0,.2); min-width: 0; }
+.vs .side b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs .side .num { font-size: 28px; }
+.vs .x { font-family: var(--font-num); font-weight: 800; color: var(--cream-dim); }
+input[type=range] { width: 100%; accent-color: var(--brass); }
+.dice { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.dice .grp { display: flex; gap: 6px; }
+.dice svg { width: 30px; height: 30px; }
+.dice.roll svg { animation: shake .45s ease-out; }
+@keyframes shake { 0% { transform: rotate(-25deg) scale(.7); } 60% { transform: rotate(12deg) scale(1.08); } 100% { transform: none; } }
+.dice-caption { font-size: 13px; color: var(--cream-dim); }
+.players { display: grid; gap: 6px; }
+.prow { display: grid; grid-template-columns: 14px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+.prow.current { background: rgba(216,180,98,.12); box-shadow: inset 0 0 0 1px rgba(216,180,98,.45); }
+.prow.out { opacity: .45; text-decoration: line-through; }
+.prow .dot { width: 14px; height: 14px; }
+.prow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.prow .name em { font-style: normal; font-weight: 500; color: var(--cream-dim); font-size: 12px; margin-left: 6px; }
+.prow .stat { font-family: var(--font-num); font-weight: 800; font-size: 18px; text-align: right; min-width: 3ch; font-variant-numeric: tabular-nums; }
+.prow .stat small { font-family: var(--font-body); font-weight: 500; font-size: 11px; color: var(--cream-dim); margin-left: 2px; }
+.section-title { display: flex; justify-content: space-between; align-items: baseline; }
+.conts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 13px; }
+.conts div { display: flex; justify-content: space-between; gap: 6px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.16); align-items: center; }
+.conts b { font-family: var(--font-num); font-size: 16px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--cream-dim); }
+.log li { display: flex; gap: 6px; align-items: baseline; }
+.log li .dot { width: 8px; height: 8px; transform: translateY(-1px); }
+.log li b { color: var(--cream); font-weight: 600; }
+.info-line { font-size: 13px; color: var(--cream-dim); }
+.info-line b { color: var(--cream); }
+.winner { text-align: center; display: grid; gap: 8px; padding: 18px; border-radius: 12px; border: 1px solid var(--brass); background: rgba(216,180,98,.1); }
+.winner .title { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: .95; color: var(--brass); }
+
+/* Map layers */
+.terr { stroke: var(--felt); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.terr.can { cursor: pointer; }
+.terr.dim, .badge.dim { opacity: .4; }
+.hl { fill: none; vector-effect: non-scaling-stroke; pointer-events: none; stroke-linejoin: round; }
+.hl.sel { stroke: var(--ink); stroke-width: 4; }
+.hl.tgt { stroke: var(--ink); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.hl.hit { stroke: #fff; stroke-width: 3.5; animation: hit 1.2s ease-out forwards; }
+@keyframes hit { from { stroke-opacity: 1; } to { stroke-opacity: 0; } }
+.route { stroke: rgba(241, 232, 212, .45); stroke-width: 1.3; stroke-dasharray: 3 4; fill: none; vector-effect: non-scaling-stroke; pointer-events: none; }
+.clname { font-family: var(--font-num); font-weight: 800; font-size: 10.5px; letter-spacing: .08em; text-anchor: middle; fill: var(--cream); pointer-events: none; }
+.clbonus { font-family: var(--font-display); font-weight: 800; font-size: 22px; text-anchor: middle; pointer-events: none; }
+.badge { cursor: pointer; }
+.badge .pillbg { stroke: var(--felt); stroke-width: 2; }
+.badge .pcount { font-family: var(--font-num); font-weight: 800; font-size: 13px; dominant-baseline: central; pointer-events: none; }
+.badge .plus rect { fill: var(--brass); stroke: var(--felt); stroke-width: 1.5; }
+.badge .plus text { fill: var(--brass-ink); font-family: var(--font-num); font-weight: 800; font-size: 11px; text-anchor: middle; dominant-baseline: central; }
+.badge .tname { display: none; font-family: var(--font-body); font-weight: 600; font-size: 10px; text-anchor: middle; fill: var(--ink); stroke: rgba(255,255,255,.55); stroke-width: 2.5px; paint-order: stroke; pointer-events: none; }
+#map.zoomed .badge .tname { display: block; }
+.piece-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--cream-dim); align-items: center; }
+.piece-key span { display: inline-flex; gap: 6px; align-items: center; }
+.piece-key svg { width: 18px; height: 18px; }
+.breakdown { display: grid; gap: 2px; font-size: 13px; color: var(--cream-dim); }
+.breakdown div { display: flex; justify-content: space-between; gap: 10px; }
+.breakdown b { font-family: var(--font-num); font-weight: 800; color: var(--cream); font-size: 15px; }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--cream); color: var(--ink); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.35); z-index: 20;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+</head>
+<body>
+<section id="lobby"></section>
+<section id="game" hidden></section>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+// ===================== DATA =====================
+const MAP = {"w":918,"h":479,"t":{"alaska":{"n":"Alaska","c":"na","d":"M16,96.3L27.3,92.2L30.6,91.8L41.7,87L47.1,82.8L40.9,84.3L39.6,82.3L34.6,83.6L37.6,80.6L33.5,80.1L33.1,74.9L41.8,70L45,70.3L52.4,68.2L55.5,65.2L44.9,66.2L41.7,62.6L52.8,59.9L57.6,61.3L55.5,55.7L56.4,53.3L60.4,53.2L70.6,49.2L85.4,46.4L92.3,48.5L97.6,48.7L114.1,51L88.8,78.6L92.7,79.5L93.7,82.8L100.6,80.1L102.3,84.4L102,90.1L104.8,92.1L101.1,95.6L99.9,85.2L94,85L89.5,80.9L81,79.5L75.9,76.8L71.4,79.6L60.4,82.1L65.4,77.3L55.5,81.5L55.9,83L44.7,87.4L35.8,91.9L20.9,96Z","x":82.4,"y":62.8},"noroeste":{"n":"Territorio del Noroeste","c":"na","d":"M88.8,78.6L114.1,51L121.7,53.3L128.2,51.2L131.1,51.6L144.1,48.8L146.7,51.6L154.4,50.6L170.2,54.7L169.5,56.7L178,55.9L188.1,53.6L190.5,55.8L196.1,56.8L203.1,56.5L204,54.7L211.9,55.7L214.8,52.8L211.9,49.9L214.2,46.8L218.2,44.8L222,46.5L223.7,51.6L221.8,54.5L226.2,52.3L227.7,54.1L226.7,58.1L233.3,53.6L235.3,50.5L243.4,52.5L240.2,55.5L239.8,58.4L234.3,60.4L229.1,60L222.7,65.2L215.5,67.4L200.1,76.8L198.1,79.5L92.7,79.5L92.7,79.5ZM152.5,45L161.4,40L161,38.4L168.5,38L176.1,38.7L178.6,40.6L168.4,43.2L163,46.3L156.1,47.6ZM165.7,45.8L171.8,42.7L178.9,41L178.4,42.8L183.8,42L185.6,43.4L189.2,42L189.9,45.6L192.7,41.6L196.6,41.7L198.1,42.8L196.4,47.4L202,50.1L197.1,51.6L196.2,53.7L189.3,52.5L171.8,54.3L167.1,52.5L166.3,50.3L177.9,49.1L166.4,48.6L172.1,46.5ZM170.2,33.6L181.7,30L187.9,29.7L185.5,31.6L176.1,33.7ZM178.4,35.9L186.4,32.6L196.8,35.3L196.3,32.8L200.8,32.1L200.3,34.3L204.6,34L201.4,36.5L187.8,38L185.1,37.2L190.5,36.1ZM203.3,51.9L208.2,49.8L211.2,51.6L209.8,53.7ZM203.9,43.2L208.7,42.7L207.7,40.9L211.2,39.6L217.3,39.8L214.3,41.9L216.6,43.1L214.4,45.5L210.2,46.6ZM210.6,35L212.2,33L221.3,32L218.3,36.5L212.8,36.4ZM218.5,42L224.1,38.8L231.9,39.6L220.4,44.5ZM223.7,67.4L227.5,62.4L231,64.2L237.5,68.3L235,69.2L231.2,67.2L224,70.3ZM224.2,31.9L225.9,30.9L235.5,31.9L238.1,34.9L243.6,35.2L254.8,34.6L256.1,36.7L250.8,38L237.8,38.1L229.8,36.9L229.9,33ZM229.4,49L229.5,44L235.7,40.4L241.6,39.7L239.4,43.1L242.8,40.9L248.9,39.8L250.7,42.6L249.3,44.4L253.4,43.7L254,43.6L256.6,42.5L268,47.6L272.6,48.7L274.7,52.5L270.1,53.8L277.6,56.3L279.7,58.9L283.1,59.1L276.2,64.5L271.6,60.5L267.5,62.5L272.3,66.4L271.1,70.4L268.6,70.4L263.5,68.2L265.1,70.4L257.9,70.4L250.6,66.3L243.7,66.8L244.9,63.6L254,63.2L259.6,57.9L259.2,55.6L252.6,53.3L254.4,52.6L250.1,49.7L250,49.7L244.3,50.9ZM233,23.6L235.4,22.5L244,21L245.2,22.2L250.7,23.2L252.4,25.5L243.8,28.1L236.3,27.9L238.1,25.4L234.5,25.4ZM239.1,32.7L244.1,30.8L244.5,29L250.4,29.9L246.1,27.9L253.8,25.5L252.2,23.3L258.8,23.7L262.6,22.8L251.5,22.7L247.2,19.6L260.6,18L264.2,18.7L266.9,17.6L273.4,17L274,17L285.7,16.8L298.3,17.2L304.5,18.6L292,20.5L296.1,20.5L286.9,22.5L282.1,24.4L269.9,25.5L271.4,27.5L265.3,29L262,30.5L260.2,31.3L261.3,31.5L263.3,31.9L260.6,32.5L256.8,33.4L252,32.7ZM252.6,42.4L253,39.8L255.7,40L257.6,40.1L260.1,42.3L254.2,42.4Z","x":139.2,"y":64.9},"groenlandia":{"n":"Groenlandia","c":"na","d":"M333.4,18.1L340.5,16.8L347,16.9L356.5,16L371.2,16.2L382.3,17.9L378.5,18.7L361,19L374.1,19.9L378,19.2L376.9,21.3L391.4,19.6L398,21L386.8,23.6L382.3,26.9L381.9,29.7L384,31.3L377.3,32.3L380.9,33.6L378.7,36.1L381,38.4L376.4,38.6L377.8,40.6L371.8,41L373.9,44.1L369.9,43L374,46.1L374.4,48.3L370.5,48.8L366.6,46.2L364.2,49.5L372.9,49.8L360.3,54.5L351.2,55.5L344.8,59.6L339.5,61.7L331.3,63.2L326.7,69L322.3,71.4L322.6,73.7L318.9,79.2L315.5,79.4L312.7,76.9L308,76.9L302.8,68.6L302.8,64L300.6,61.3L301.1,58.2L304.5,54.8L308.2,53.8L310.8,50.4L304.5,52.2L302.1,51.3L304.2,47.9L310.3,48.6L305.7,45.9L301.9,45.6L305.4,43L300.8,35.1L296.1,33.6L281.3,33.7L276.9,31.3L286.8,30.3L278.6,29.7L275.7,27.7L292.1,25.4L288.8,23.6L291.2,22.7L302,20.9L302,19.9L313.1,19L320.5,19.6L326.3,18.5L336.4,20.1Z","x":330.7,"y":41.3},"alberta":{"n":"Alberta","c":"na","d":"M92.7,79.5L161.3,79.5L159.4,82.5L157.4,85.6L155.5,88.7L153.7,91.8L151.8,95L150,98.1L148.2,101.3L146.5,104.5L144.8,107.7L143.1,110.9L141.5,114.2L108.8,114.2L104.4,109.6L100.6,108.3L102.5,103.5L100.2,102.1L101.1,95.6L104.8,92.1L102,90.1L102.3,84.4L100.6,80.1L93.7,82.8ZM98.2,108.5L103.8,110L106.2,115.8L101.3,114.8Z","x":127,"y":96.8},"ontario":{"n":"Ontario","c":"na","d":"M141.5,114.2L143.1,110.9L144.8,107.7L146.5,104.5L148.2,101.3L150,98.1L151.8,95L153.7,91.8L155.5,88.7L157.4,85.6L159.4,82.5L161.3,79.5L198.1,79.5L195.8,82.7L199,83.2L198.5,88.5L206,89.2L213.5,94L220,94.5L218.4,97.3L218.2,104L220.7,107.1L224.2,104L224,104.5L222.8,107.7L221.6,110.9L220.4,114.2L219.2,117.4L218.1,120.7L217,124L215.9,127.3L214.9,130.6L214.4,132.3L213.9,132.3L213.9,133.8L213.9,133.9L213.7,134.4L203.5,138.3L202.1,136.9L206.2,132L207.1,126.1L202.9,121L195.6,116.5L187.1,117L179.3,114.2Z","x":182.8,"y":96.9},"quebec":{"n":"Quebec","c":"na","d":"M214.4,132.3L214.9,130.6L215.9,127.3L217,124L218.1,120.7L219.2,117.4L220.4,114.2L221.6,110.9L222.8,107.7L224,104.5L224.2,104L225.7,102.7L225.6,100.5L226.5,98.1L227.7,95.3L229.9,94.6L235.8,90.2L236,85.5L234.1,83.1L238.3,79.9L240,72.5L250.1,72.1L254.1,76L258.2,76.3L256.3,82.7L259.3,85L263.4,83.3L269.1,78.5L273,88.8L271.3,90.8L275.6,94.3L280.5,96.2L283.2,100.5L282.4,104L269.8,110.2L253.7,110.2L247.1,114L238.2,121.3L252.2,113.8L257.9,115L254.8,117.2L254.8,123.2L258.5,123.8L256.7,120.6L261.3,122.5L259.1,123.9L262.1,124.4L265.7,120.7L266.6,124.3L256.6,128.4L250.2,132.1L248.9,129L254.1,126.3L246.9,126.8L247,120.5L243.7,119.2L235.4,127.3L226.7,127.3L220.2,131.8ZM257.9,70.4L265.1,70.4L267.3,73.6L261.5,72.4ZM269.4,118.7L270.3,115.7L276.9,108.6L281.9,106.7L277.6,111.6L285.5,113.4L286.3,119L281.8,121.3L282.4,118.3Z","x":249.6,"y":96.1},"eeuu-oeste":{"n":"EE. UU. Occidental","c":"na","d":"M90.4,147.4L90.5,142.8L93.9,134.7L100,125.6L103.3,116.2L107.2,119.5L108.8,114.2L166.9,114.2L166.9,114.2L165.5,117.4L164.1,120.7L162.7,124L161.3,127.3L160,130.6L158.7,133.9L157.5,137.2L156.3,140.5L155.1,143.9L153.9,147.2L152.8,150.6L151.7,153.9L150.7,157.3L149.6,160.6L148.7,164L147.7,167.3L146.8,170.7L145.9,174.1L145,177.4L144.2,180.8L143.4,184.2L143.3,184.4L141.9,179.5L138,178.2L135.5,180.9L132.3,178.9L128.7,171.5L115.8,172.9L106.6,168.9L100.3,168.9L98.2,163.9L93.6,162.5Z","x":124.1,"y":143},"eeuu-este":{"n":"EE. UU. Oriental","c":"na","d":"M143.3,184.4L143.4,184.2L144.2,180.8L145,177.4L145.9,174.1L146.8,170.7L147.7,167.3L148.7,164L149.6,160.6L150.7,157.3L151.7,153.9L152.8,150.6L153.9,147.2L155.1,143.9L156.3,140.5L157.5,137.2L158.7,133.9L160,130.6L161.3,127.3L162.7,124L164.1,120.7L165.5,117.4L166.9,114.2L166.9,114.2L179.3,114.2L187.1,117L195.6,116.5L202.9,121L207.1,126.1L206.2,132L202.1,136.9L203.5,138.3L213.9,134.3L213.9,132.3L220.2,131.8L226.7,127.3L235.4,127.3L243.7,119.2L247,120.5L246.9,126.8L247.1,127.9L237.8,131.6L235.3,134.3L236.4,138.4L228.4,139.8L218,150.8L216.4,148.2L216,158.8L207,164.4L197.6,172.6L196.7,175L198.2,187.9L196.3,193.5L194.1,193.6L190,177.6L185.9,178.6L182.9,176.1L173.9,176.9L173.7,180.2L167.9,178.5L159.3,179.2L150.2,186.2L149.8,191.3L144.9,189.6Z","x":180.2,"y":150.5},"centroamerica":{"n":"Centroamérica","c":"na","d":"M100.3,168.9L106.6,168.9L115.8,172.9L128.7,171.5L132.3,178.9L135.5,180.9L138,178.2L141.9,179.5L144.9,189.6L149.8,191.3L145.5,202.8L149.1,215L153,217.3L163.9,213.4L166.1,207.7L175.5,205.9L171.7,216.9L170.5,216.1L167.7,224.8L169.6,225.4L180.7,225L183.8,227.8L181.2,241.4L184.1,246L187.1,248.6L192.6,245.8L198.8,249L197.1,253.8L193.8,247.9L191,252.7L182.6,250.5L174.9,244.1L175.3,240.9L171.3,234.6L170,233.2L163.6,232L157.7,229.4L151.4,223.8L145.8,225.6L127.2,216.8L122.1,209.6L124,206.3L122.7,201.7L116.3,189.4L110.2,180.9L109.8,173.5L106,171.4L104.6,176.9L110,188.6L113.6,199.7L106.8,195.1L107.5,190.8L102.4,187L104.5,182.2L101.7,178.9ZM188.2,202L189.9,200.3L200.6,202.6L205.1,207L211.4,210.1L201,211.5L203.2,209.7L199.1,205.7ZM210.2,215.5L216,215.5L214,211.3L218.1,212L220.7,211.4L227.3,215.7L217.5,217.6Z","x":132.8,"y":193.4},"venezuela":{"n":"Venezuela","c":"sa","d":"M193.7,273.3L198.9,265.1L197.1,253.8L198.8,249L203.8,246.4L204.6,242.5L210.7,240.4L215.7,236.4L216.8,238.6L216.4,241.3L223.7,239.7L225.5,242.7L243.7,242.1L242.1,244.7L249.4,250L256.7,258L265.9,258.7L272.4,264.1L269.7,269.6L264,270.2L258.2,271.6L251,273.6L248.3,268.8L249.6,264.7L246.3,260.6L245.5,262.8L239.4,265.4L235,264.1L236.1,273L229.9,275.5L228.3,273.8L219.9,272.2L220.9,283.2L219.8,292.3L217,285.5L210.5,285.7L203.8,278.5L197.9,276.6Z","x":216,"y":256.9},"peru":{"n":"Perú","c":"sa","d":"M186.6,293.8L189.7,289.3L187.7,285.5L190.2,275.4L193.7,273.3L197.9,276.6L203.8,278.5L210.5,285.7L217,285.5L219.8,292.3L211.2,295.6L208.4,303.1L214,311.6L218.8,309.7L218.9,314.8L221.8,314.6L225.4,314.8L233.6,310.6L233.7,316.6L248.3,324L249.9,332.3L255.3,332.5L258,338.8L256.7,345.5L253.7,342.7L246.2,343.6L244.6,352.4L234.3,351L232.4,354.1L230.4,354.5L226.7,346.1L227.3,342.9L223.4,336.8L221.4,339.3L218,336L204.1,326.9L191.7,302L187.2,298.5Z","x":236.5,"y":332.7},"brasil":{"n":"Brasil","c":"sa","d":"M275.7,391.2L273.7,385.4L264,378.9L262.3,379.2L271.8,368.1L268.6,364.2L268.9,358.4L265.8,358.2L264.7,353.8L258,351.9L256.7,345.5L258,338.8L255.3,332.5L249.9,332.3L248.3,324L233.7,316.6L233.6,310.6L225.4,314.8L221.8,314.6L218.9,314.8L218.8,309.7L214,311.6L208.4,303.1L211.2,295.6L219.8,292.3L220.9,283.2L219.9,272.2L228.3,273.8L229.9,275.5L236.1,273L235,264.1L239.4,265.4L245.5,262.8L246.3,260.6L249.6,264.7L248.3,268.8L251,273.6L258.2,271.6L264,270.2L269.7,269.6L272.4,264.1L277.2,274.5L275.9,278.2L281,278.7L291.8,283.1L292.7,286.9L296.1,285.9L306,287.6L314.1,294.1L319.8,296.2L321.4,302.5L320.4,308L315.1,314.9L309.9,324.1L310.4,330.3L308.7,343.5L305.9,351.4L303.2,354.9L295.8,356.1L290.9,358.6L285.8,364.6L285.8,374Z","x":280.5,"y":315.1},"argentina":{"n":"Argentina","c":"sa","d":"M221.4,339.3L223.4,336.8L227.3,342.9L226.7,346.1L230.4,354.5L232.4,354.1L234.3,351L244.6,352.4L246.2,343.6L253.7,342.7L256.7,345.5L258,351.9L264.7,353.8L265.8,358.2L268.9,358.4L268.6,364.2L271.8,368.1L262.3,379.2L264,378.9L273.7,385.4L275.7,391.2L272.1,395.1L264,393.5L262,391.6L266.1,396.3L268.2,401.7L266.4,406L262.8,407.8L254.5,408.1L256.4,414.3L248.8,415.6L250,418.9L254.4,420.6L250.6,423.7L250.9,428.8L246.8,432.9L252.7,436L249.7,444.5L247.3,447.3L250.4,452.4L245.4,454.3L246,457.2L241.8,456.3L234.4,452.2L228.6,440.7L230.6,435L226.4,434.1L227.9,431.2L227.2,425.7L230.4,426.8L229.8,420L226.4,422.8L224.2,402.4L225.5,386.6L223.1,374.7L224.1,370.6L223.4,349.6ZM235.8,454.1L246.1,458L246.8,454.4L250.6,453.4L254.1,457.3L261.7,460L257.2,460.6L255.1,462.9L247.5,461.1ZM268.3,450.9L274.3,448.5L276.7,450L273.1,452Z","x":243.7,"y":372.2},"islandia":{"n":"Islandia","c":"eu","d":"M388.9,60.3L390.5,64.2L387.4,66.4L378.5,69L369.3,67.6L371.7,66.3L366.9,64.9L371.1,63.4L366.4,62.7L371.7,60.4L375,62.4Z","x":378.1,"y":65.4},"gran-bretana":{"n":"Gran Bretaña","c":"eu","d":"M396.5,105.1L398.6,101.8L397.5,98.5L402.9,94.6L407.5,96.4L406.1,98.6L404.5,103.7ZM406.5,89.4L409.4,83.7L414.2,83.7L411.6,87L416.7,86.6L413.8,91.9L416.3,92.1L420.4,96.7L422.6,101.5L425.6,102.2L422.8,108.5L406.8,110.4L410.6,107L410.1,99.7L413.8,100L412.5,96.2L407.8,94Z","x":417.6,"y":103.6},"escandinavia":{"n":"Escandinavia","c":"eu","d":"M433,73.5L445.4,66L454.1,56.4L463.2,50.7L471.4,49.6L474.3,47.3L482,46.9L489.2,48.9L489.3,51.4L484.1,52.8L487.9,56.7L486.3,58.9L489.6,62.2L488.6,64.7L490.5,68.8L494.3,70.8L487.5,78L475.6,80L471.6,77.3L470.2,71.6L472.9,68L479.1,64.2L475.3,61.6L471.5,62.4L470.2,66.3L462.7,71.2L461.5,75.4L465.8,79.2L461.6,83.4L460,91.5L453.1,93.8L447.7,83L446,81.1L441.5,84.7L435,83.8ZM441.9,24.7L447.1,23.9L451.1,24.7L454.6,23.8L464,26.4L459.2,27.4L456.2,31.8L449.2,30.3L450.9,29.4L443.6,26.6ZM455.2,23.2L465.8,22.4L474.9,23.8L472.4,25.1L460.8,25Z","x":451.9,"y":73.5},"europa-norte":{"n":"Europa del Norte","c":"eu","d":"M427.7,107.2L429.7,106.6L433.1,101L438.5,99.8L443.1,98.1L442.3,95.1L441,90.2L446.9,86.5L447.9,90.4L445.7,95L448.4,98.1L452.2,96.7L456.3,98.9L464.7,95.5L469.8,96.8L477.4,97.1L479.4,98.4L480.4,105.9L481.9,108.7L478.8,113.9L469.3,112.6L464.7,115.5L464.8,117L463.1,121.2L457,122.3L452.7,120.3L448.3,121.1L441.5,124.6L439.1,124L437,121.6L440.6,118.7L442,114.1L437.1,112.7L435.8,112.5Z","x":453,"y":109.4},"europa-occidental":{"n":"Europa Occidental","c":"eu","d":"M395.9,148.1L398.1,141.3L397.6,137.6L396.7,133.8L400.5,131.4L416.4,132.5L418.3,123.9L409.7,115.2L417.3,115.3L424.8,110.5L427.7,107.2L435.8,112.5L437.1,112.7L442,114.1L440.6,118.7L437,121.6L439.1,124L440.9,131.6L438.6,133.5L433.4,132.6L429.3,135.6L427,139.8L423.6,140.5L420.7,146.2L421.7,148.1L415.6,155L409.6,155L406.9,157.4L401.3,153.6L397.4,154.3Z","x":409.4,"y":143.5},"europa-sur":{"n":"Europa del Sur","c":"eu","d":"M439.1,124L441.5,124.6L448.3,121.1L452.7,120.3L457,122.3L463.1,121.2L464.8,117L464.7,115.5L469.3,112.6L478.8,113.9L477.8,116.1L479.6,117.8L485.2,118.3L489.5,116.7L493.9,121.3L494.7,125.7L498.3,126.3L496.2,131.5L495.3,137.2L490.4,137.8L490.5,139.4L490.5,139.4L490.6,141.1L482.1,142.3L482.9,147.3L485.9,149.8L479.9,154.4L475.2,145.1L472.6,137.6L470,135.6L463.4,132.2L460.2,127L457,125.6L457.6,125.3L453.4,126L454.3,130.3L463.4,138.7L470.3,142.7L466.3,142.4L467.3,145.8L464.7,150.6L462.5,143.7L455.5,139.7L444.6,129.4L440.9,131.6ZM443.9,146.6L444.5,140.9L447.5,142.2L447.3,146.6ZM454.9,151.9L461,150.1L462.2,155.2Z","x":481.3,"y":129.9},"ucrania":{"n":"Ucrania","c":"eu","d":"M469.8,96.8L473.5,94.4L472.7,91.8L473.4,87.4L477.8,88.7L479.9,86.3L476.9,82L482.8,80.7L487.8,81.1L487.5,78L494.3,70.8L490.5,68.8L488.6,64.7L489.6,62.2L486.3,58.9L487.9,56.7L484.1,52.8L489.3,51.4L501.5,52.8L510.7,56L513.4,59.3L507.9,61.6L497.3,59.4L499.9,61.9L501.2,66.3L506.3,67.9L505.8,64.1L511.7,65.9L511.4,63.1L515.8,60.2L520.4,61.4L521.1,59.4L517.1,54.2L523.6,55.1L525.2,59.7L528.4,57.2L539.4,53.4L539.6,55.3L542.7,54.7L543.2,55.8L544.2,58.7L545.3,61.6L546.4,64.5L547.4,67.5L548.4,70.4L549.5,73.4L550.5,76.5L551.5,79.5L552.4,82.5L553.4,85.6L554.4,88.7L555.3,91.8L556.2,95L557.1,98.1L558,101.3L558.9,104.5L559.7,107.7L559.8,108.2L552.4,105.4L548.5,105.5L541.4,109.5L540.1,116.2L544.6,118.3L548.2,122.7L543.1,128.6L549.8,137.8L548.1,140L544,137.7L541.1,135.5L526.2,132.5L516.7,126.5L520.2,123.2L519.7,120.4L513.8,121.9L512.1,124.9L515.9,126.9L509.8,129.4L505.7,126.2L507.9,124.1L500.7,122.1L498.3,126.3L494.7,125.7L493.9,121.3L489.5,116.7L485.2,118.3L479.6,117.8L477.8,116.1L478.8,113.9L481.9,108.7L480.4,105.9L479.4,98.4L477.4,97.1ZM532,46.1L533.6,39.8L536.1,38.4L536.4,39.2L537.6,41.9L538.7,44.6L539.9,47.4L540.1,48.1L537.3,48Z","x":519.3,"y":92.6},"africa-norte":{"n":"África del Norte","c":"af","d":"M371,228.7L374.5,224L375.3,210.7L373.2,207.7L373.3,206.3L381.1,190L386.3,184L388.9,183.7L395,177.6L394.4,173.5L397.7,166.5L402.6,163.6L405.3,158.1L415.5,160L425.4,155.2L438.3,153.5L444.1,154.1L447,152.7L450.1,155.9L449.1,162.9L452.8,166.9L447.6,176.4L448.7,180.9L447.5,190.6L450.3,196.3L455.2,199.4L463.2,201.4L466,199.6L489,212.5L489.6,225.8L487.1,225.5L485.2,230.1L487.1,240.7L481.8,246.3L475.5,247.9L473.1,251.6L465.4,253.2L461.5,246L465.9,244.6L462.9,235L462.1,236.2L455.3,254.6L448,256.4L445.9,262L438.4,263.7L433.9,257L429.2,257L426.8,257.4L424.5,258.2L415.8,262.2L413.2,261.3L404.6,261.3L399.2,263.4L395.4,261.8L388.5,255.3L384.1,251.9L383.3,248.2L378,241.1L373.6,236.6L373.2,234L373.6,232.5Z","x":415.7,"y":218.2},"egipto":{"n":"Egipto","c":"af","d":"M447.5,190.6L448.7,180.9L447.6,176.4L452.8,166.9L463.2,169.8L464.7,172.8L474.1,176.5L478.6,168.3L484.2,168.5L490.6,172.1L501.1,174.5L504.2,172.5L515.8,173.3L518.1,179.1L515.8,185.3L512.2,181.8L521.7,197.9L521.4,200.6L525.4,204.3L492,204.3L492.2,211L489,212.5L466,199.6L463.2,201.4L455.2,199.4L450.3,196.3Z","x":486.1,"y":188.4},"africa-oriental":{"n":"África Oriental","c":"af","d":"M485.2,230.1L487.1,225.5L489.6,225.8L489,212.5L492.2,211L492,204.3L525.4,204.3L527.9,215.7L530.6,217.8L533.5,224.7L544.9,235.5L545.2,239.7L548.2,243.1L561.9,239.8L568,237.8L568,242.4L563.9,255.2L555.8,268.4L546,277L541.5,283.6L537.6,286.6L534.5,293.6L533.2,299.6L534.2,306.3L537.2,312.4L526.2,317.1L520.6,316.5L518.4,309.4L515.6,308.8L509.9,305.8L506.8,299.7L506,293L505.2,287.4L506.8,282.4L507.7,276L511.4,270.6L510.4,266.2L507.1,262.6L502.1,263.2L500.4,260.5L492.1,250.5L488.9,248L487.1,240.7Z","x":512.1,"y":236.4},"congo":{"n":"Congo","c":"af","d":"M445.9,262L448,256.4L455.3,254.6L462.1,236.2L462.9,235L465.9,244.6L461.5,246L465.4,253.2L473.1,251.6L475.5,247.9L481.8,246.3L487.1,240.7L488.9,248L492.1,250.5L500.4,260.5L502.1,263.2L507.1,262.6L510.4,266.2L511.4,270.6L507.7,276L506.8,282.4L505.2,287.4L506,293L506.8,299.7L509.9,305.8L504.1,306.4L502.8,317.4L504.3,322.2L499.4,316.8L497.6,317.8L490.1,314.5L485,315L484,302.3L477.3,301.9L476.2,304.6L471.7,304.9L468.5,297.6L456.9,298.3L456.5,297.3L458.9,293.9L455.8,294.8L453.4,291.3L446.8,281.7L448.8,274.6L449.3,270.3L449.7,267.7Z","x":480.5,"y":275.6},"sudafrica":{"n":"Sudáfrica","c":"af","d":"M454.8,335.8L457.9,321.9L460.5,318.2L459.5,306.6L456.9,298.3L468.5,297.6L471.7,304.9L476.2,304.6L477.3,301.9L484,302.3L485,315L490.1,314.5L497.6,317.8L499.4,316.8L504.3,322.2L502.8,317.4L504.1,306.4L509.9,305.8L515.6,308.8L518.4,309.4L520.6,316.5L526.2,317.1L537.2,312.4L538,327.1L533.8,333.9L527.9,336.8L520,344.2L521.7,351.9L519.7,359.9L512.5,364.1L513,367.5L511.6,372.8L504.2,382.3L498.7,387.8L491.8,391.8L483,391.5L474.8,394.7L471.2,391.5L471.5,384.1L466.8,373.7L463.8,368.7L461.6,352L459.2,347.8Z","x":489.6,"y":346.6},"madagascar":{"n":"Madagascar","c":"af","d":"M563.4,319.6L565.6,328.9L553.4,361.5L548.5,363.7L544.8,361.6L543.5,351.8L547.1,345.1L546.6,336.2L548.2,332.2L553.6,330.7Z","x":554.2,"y":338.7},"ural":{"n":"Ural","c":"as","d":"M536.1,38.4L537.5,37.5L536.4,36.3L546.3,33.2L559.5,31.5L560.6,33.3L548.5,35.8L543.3,38.3L539.2,43.6L540.6,45.9L545.6,48.1L540.1,48.1L539.9,47.4L538.7,44.6L537.6,41.9L536.4,39.2ZM542.7,54.7L550.5,53.3L553.8,55L555.5,53.2L553.2,50.6L560,51.4L572.9,55.6L573.7,54.1L567.7,50.4L565,47.3L569.1,41.8L575.1,42.5L575.5,46.2L579.1,49.1L580.6,52.9L583.9,54.7L581.5,60.7L584.3,61.1L587.8,56.6L588.9,58.7L590.4,61.6L591.8,64.5L593.2,67.5L594.6,70.4L596,73.4L597.4,76.5L598.8,79.5L600.1,82.5L601.4,85.6L602.7,88.7L604,91.8L605.2,95L606.5,98.1L606.7,98.7L603.2,99.8L602.7,98L596.9,97.7L594.9,94.5L590.3,93.8L581.8,97L573,98.1L574.7,101.4L571.3,104.6L576,106.8L571.8,109.2L568.1,107.5L561.8,108.9L559.8,108.2L559.7,107.7L558.9,104.5L558,101.3L557.1,98.1L556.2,95L555.3,91.8L554.4,88.7L553.4,85.6L552.4,82.5L551.5,79.5L550.5,76.5L549.5,73.4L548.4,70.4L547.4,67.5L546.4,64.5L545.3,61.6L544.2,58.7L543.2,55.8ZM578.2,46.1L581.3,44.4L581.4,44.6L582.9,47.4L584.4,50.2L585.9,53L587,55L585.8,53L582,51.2L582.2,48.4Z","x":572.2,"y":78.2},"siberia":{"n":"Siberia","c":"as","d":"M581.3,44.4L582.4,43.8L583.5,45L590.8,43.7L595.7,45.3L590.4,40.1L603.1,39.3L601.6,36.2L612.2,33.8L619.5,34.1L625.4,33L626.1,33.9L628.3,36.5L630.5,39.2L632.6,41.9L634.7,44.6L636.8,47.4L638.8,50.2L640.8,53L642.8,55.8L644.7,58.7L646.7,61.6L648.6,64.5L650.5,67.5L652.4,70.4L654.2,73.4L656.1,76.5L657.9,79.5L659.6,82.5L661.4,85.6L663.1,88.7L664.8,91.8L666.5,95L668.1,98.1L669.8,101.3L671.3,104.5L671.7,105.3L668.4,104.4L667.9,111.8L653.6,108.4L644.3,113.2L643.5,113.5L638.2,111.9L631,107.5L622.8,108.2L614.1,100L610,97.6L606.7,98.7L606.5,98.1L605.2,95L604,91.8L602.7,88.7L601.4,85.6L600.1,82.5L598.8,79.5L597.4,76.5L596,73.4L594.6,70.4L593.2,67.5L591.8,64.5L590.4,61.6L588.9,58.7L587.8,56.6L587.9,56.5L587,55L585.9,53L584.4,50.2L582.9,47.4L581.4,44.6ZM598.7,23.1L602,21.6L605.6,21L617.1,24.3L618.9,26L619.4,26.6L615.3,26.9L605,25.3Z","x":625.6,"y":76.7},"yakutsk":{"n":"Yakutsk","c":"as","d":"M620.8,28L621.1,25.7L624.1,25.6L631,28L621.7,28.9L621.6,28.8ZM625.4,33L626.7,32.8L627.3,30.6L631,29.5L633.1,31L647.1,32L655.5,34.3L656.3,35.6L649.7,38.7L660.4,41L663.7,39.8L670.8,40.3L672.5,41.5L681.7,41.9L679.8,39.9L688.1,40.3L692.9,41.8L695.5,44.7L704.7,48L703.9,45.1L721.2,46L717,43.5L718,42.7L720,44.6L722.9,47.4L725.7,50.2L728.5,53L731.3,55.8L734.1,58.7L736.8,61.6L739.5,64.5L742.1,67.5L744.8,70.4L747.3,73.4L749.9,76.5L752.4,79.5L657.9,79.5L656.1,76.5L654.2,73.4L652.4,70.4L650.5,67.5L648.6,64.5L646.7,61.6L644.7,58.7L642.8,55.8L640.8,53L638.8,50.2L636.8,47.4L634.7,44.6L632.6,41.9L630.5,39.2L628.3,36.5L626.1,33.9ZM704.1,35.8L705.2,33.5L707.7,33.6L708,33.9L711.1,36.5L712.2,37.4L710.1,37.5Z","x":668.7,"y":60.4},"irkutsk":{"n":"Irkutsk","c":"as","d":"M657.9,79.5L752.4,79.5L754.9,82.5L757.4,85.6L758,86.4L753.2,95.8L762.9,98.9L766.2,97.5L766.6,97.8L766.8,98.1L769.1,101.3L771.3,104.5L773.5,107.7L775.6,110.9L777.7,114.2L779,116.2L778.4,123L775,132.6L772.5,134.5L768.4,132.9L766.2,136.5L765.6,135.9L762.3,127.4L767.3,126.8L766,115.9L757,118.1L749.9,112.8L744.8,111.7L734.6,102L727.4,99.9L721.4,100.5L723.2,104.6L720.5,112.5L716.8,111.3L710.3,110.1L702.8,113.8L697,113.3L691.4,110.1L683.6,110.7L677.7,106.9L671.7,105.3L671.3,104.5L669.8,101.3L668.1,98.1L666.5,95L664.8,91.8L663.1,88.7L661.4,85.6L659.6,82.5Z","x":700.8,"y":96.2},"kamchatka":{"n":"Kamchatka","c":"as","d":"M707.7,33.6L710.8,33.6L719.9,35L720.6,37L712.2,37.4L711.1,36.5L708,33.9ZM718,42.7L718.5,42.3L739.7,44.1L751.3,47.8L764.2,47.7L769.5,50.9L773.1,51.7L787.6,51.3L794.5,53.9L796.1,53L791.6,49.9L803.8,50.5L811.8,51.9L816.4,53.1L819.9,55.8L823.4,58.7L826.9,61.6L830.3,64.5L830.4,64.6L830.4,64.6L825.8,65.7L835.7,70.5L837.7,72.5L832.6,71.9L826.9,74.5L824.5,79.9L819,77.7L815.2,80.1L808.5,79.9L809.5,84.9L814.1,86.8L819.1,95.4L816.2,97.1L818.3,100.7L815.2,101.5L815.7,107.7L801.4,93.8L798.2,86.1L801.3,85.5L803.2,78.4L805,76L802.6,71.8L798.4,77.8L793,74.1L787.9,75.1L786.7,80.2L790.4,82.1L782.4,83.2L780.6,81L774.9,82L767.1,81.5L760.1,82.4L758,86.4L757.4,85.6L754.9,82.5L752.4,79.5L749.9,76.5L747.3,73.4L744.8,70.4L742.1,67.5L739.5,64.5L736.8,61.6L734.1,58.7L731.3,55.8L728.5,53L725.7,50.2L722.9,47.4L720,44.6ZM766.6,97.8L772.2,101L779,116L779,116.2L777.7,114.2L775.6,110.9L773.5,107.7L771.3,104.5L769.1,101.3L766.8,98.1ZM772.6,100.4L774.7,99.1L779.9,105.3L789.6,114.3L785.1,113.2L786.6,117.9L791.1,121.2L789.1,124.1L779.1,107.9Z","x":762.2,"y":65.5},"mongolia":{"n":"Mongolia","c":"as","d":"M644.3,113.2L653.6,108.4L667.9,111.8L668.4,104.4L677.7,106.9L683.6,110.7L691.4,110.1L697,113.3L702.8,113.8L710.3,110.1L716.8,111.3L718.1,118.3L723.5,117.2L729.9,121.7L724.1,121.8L716.8,127.9L712.2,126.9L714.1,131.4L709.1,135.5L701.4,136.8L699,138.6L689.5,135.5L674.9,134.8L670.3,129.8L664.6,127.4L657.6,126.3L652.9,118.4L645.9,115.5Z","x":688.4,"y":122.8},"japon":{"n":"Japón","c":"as","d":"M800.7,146.6L799.8,150L802.8,157.8L799.6,161.7L794.9,161.9L792.5,165.8L789.1,162L778.8,164.4L782.5,166.8L782.8,172.5L775.3,166.3L781.3,159.2L789.4,158.8L789.7,152.9L792.2,154.5L795.6,149.8L793.1,139.9L795.6,139.3ZM799.5,130.7L803.3,133L799.9,133.9L799.3,137.2L794,135L794.5,138.6L791.6,138.6L789.4,132.8L792.1,132.6L789.6,125.5ZM783.2,165.8L786.2,162.7L789.3,164.6L785.9,168.3Z","x":797,"y":156.7},"afganistan":{"n":"Afganistán","c":"as","d":"M540.1,116.2L541.4,109.5L548.5,105.5L552.4,105.4L561.8,108.9L568.1,107.5L571.8,109.2L576,106.8L571.3,104.6L574.7,101.4L573,98.1L581.8,97L590.3,93.8L594.9,94.5L596.9,97.7L602.7,98L603.2,99.8L610,97.6L614.1,100L622.8,108.2L631,107.5L638.2,111.9L643.5,113.5L640.4,116L640.6,120.7L635.1,119.6L635.3,125.5L629.5,127.6L633.7,133.3L632.9,136L628.6,139.9L621.9,142L618.1,145.8L623.3,152.5L624,153.5L615.6,155.5L614.8,164L612.1,163.9L611,172L605.7,173L604.9,177.8L594.7,179.7L589.8,178L591.8,174.9L589,172.2L586.7,165.1L587.4,158.4L586.6,155.6L575.4,150.5L570.5,150.7L566.7,153.2L565.6,147.4L561.7,143.8L561.8,141L566.6,140.7L563.1,136.8L560.1,137.9L552.5,128.6L559.2,126.4L558,121.2L553.1,120.6L548.2,122.7L544.6,118.3Z","x":595.8,"y":128},"china":{"n":"China","c":"as","d":"M618.1,145.8L621.9,142L628.6,139.9L632.9,136L633.7,133.3L629.5,127.6L635.3,125.5L635.1,119.6L640.6,120.7L640.4,116L643.5,113.5L644.3,113.2L645.9,115.5L652.9,118.4L657.6,126.3L664.6,127.4L670.3,129.8L674.9,134.8L689.5,135.5L699,138.6L701.4,136.8L709.1,135.5L714.1,131.4L712.2,126.9L716.8,127.9L724.1,121.8L729.9,121.7L723.5,117.2L718.1,118.3L716.8,111.3L720.5,112.5L723.2,104.6L721.4,100.5L727.4,99.9L734.6,102L744.8,111.7L749.9,112.8L757,118.1L766,115.9L767.3,126.8L762.3,127.4L765.6,135.9L766.2,136.5L765.5,140.9L761.5,144.7L765.3,148.5L770.9,154.6L772.1,160.3L765.9,162.7L760.7,151.4L756.3,150.2L756.3,145.9L752.5,144.1L745.4,147.6L746.2,142.5L744,140.7L736.2,148.1L744.1,153.4L746.1,151L751.9,154.1L748.5,155.1L745.3,160.9L748.9,162.8L756.6,171.7L755.9,175.1L759,178L754.3,195.8L747.9,201.7L742.2,202.5L734.4,206.3L726.6,205.8L717.7,199.8L709.4,202.8L707.3,206.2L701.4,203.9L698.5,197.4L695.7,197.9L697.3,191.2L696.2,185.8L691.8,183.3L687.5,179.3L683.4,179.9L676.5,184.9L671.5,183.2L668.8,186.5L666.5,184.6L659.9,183.5L646.5,176L645.5,176.8L638,172.3L636.4,162.9L632.6,159L627.8,157.6L624,153.5L623.3,152.5ZM730.1,216.1L730.7,211.6L735.3,210.8L732.6,217.1ZM759.2,199.1L761.6,193.2L763.2,196.3L762.2,204.4Z","x":712.8,"y":163.3},"oriente-medio":{"n":"Oriente Medio","c":"as","d":"M490.4,137.8L495.3,137.2L497.8,140.4L491.6,143.4L490.6,141.1ZM491.3,145.7L498.9,139.8L504,140.2L509.9,137.1L514.2,137.1L523.1,140.7L531.3,138.8L530.5,135.1L526.2,132.5L541.1,135.5L544,137.7L548.1,140L549.8,137.8L553.2,142L552.6,149.5L553.8,152L562.5,154.9L566.7,153.2L570.5,150.7L575.4,150.5L586.6,155.6L587.4,158.4L586.7,165.1L589,172.2L591.8,174.9L589.8,178L595.7,183.3L598,188.3L594.3,190.1L593.7,194L582,191.8L578.9,187L574.2,189.3L564.7,184.6L559.9,176.9L555.7,177.7L554,177.5L555.8,182.3L561.4,188.6L563.9,195.1L565.6,195.5L566.2,196.8L573.1,197.2L578.1,190.7L578.8,191.8L579.5,194.5L586.6,199.1L590.1,203.3L585.4,214.2L578.8,220.3L572.8,222.3L570.3,225.8L560.7,231.1L546,235.7L543.4,223.3L537.5,212.8L532,206.7L531.5,202.4L519.1,183.9L518.2,179.6L518.1,179.1L515.8,173.3L517.5,167L519.4,161.8L519.4,157.9L515.1,154.6L509.4,156.9L504.1,155L501.8,156.8L496.1,155L492,149.9Z","x":538.7,"y":165.3},"india":{"n":"India","c":"as","d":"M589.8,178L594.7,179.7L604.9,177.8L605.7,173L611,172L612.1,163.9L614.8,164L615.6,155.5L624,153.5L627.8,157.6L632.6,159L636.4,162.9L638,172.3L645.5,176.8L646.5,176L659.9,183.5L666.5,184.6L668.8,186.5L671.5,183.2L676.5,184.9L683.4,179.9L687.5,179.3L691.8,183.3L692.2,187.2L686.9,188.9L685.9,198.1L683.5,197.3L682.9,204.2L682.8,208.8L678.9,201.8L676.2,204.9L672.6,204.1L667.1,206L666.4,210.5L662.7,212.8L655.5,221.1L650.6,224.8L650.8,243.3L644.6,251.3L641.8,248.2L631.2,224.5L626.6,206.5L620.7,208.1L617.7,202.8L613.1,198.6L607.2,192.8L593.7,194L594.3,190.1L598,188.3L595.7,183.3ZM650.8,250.6L651.8,245.1L656.9,252.8L656.7,256.3L653,258Z","x":646.5,"y":199.9},"siam":{"n":"Siam","c":"as","d":"M682.8,208.8L682.9,204.2L683.5,197.3L685.9,198.1L686.9,188.9L692.2,187.2L691.8,183.3L696.2,185.8L697.3,191.2L695.7,197.9L698.5,197.4L701.4,203.9L707.3,206.2L709.4,202.8L717.7,199.8L726.6,205.8L723.4,208.7L721.3,214.2L732.4,226.9L734.7,239L724,249.2L721.1,242.9L715.6,237.2L708,233.1L706.4,244.7L710.7,253.1L715.8,257.2L719.6,261.7L720.3,273.9L714.1,268.7L709.8,256.4L704.9,250L704.7,244.8L704.9,239.7L698.2,221.3L693.6,225.4L690.1,224.3L689.6,217ZM738,271.3L742.3,271.8L742.9,269L747.5,267.6L750.9,262.8L754.2,263.5L754.3,259.8L757.7,254.8L765.1,259.9L761.5,264.1L755.7,263.6L752.3,273.2L747.2,273L740.5,275.4Z","x":711.2,"y":221.4},"indonesia":{"n":"Indonesia","c":"oc","d":"M696.5,261.4L702.5,260.4L711.9,270.9L714.9,271L721.2,277.6L722.8,281.6L727.7,288.2L726.5,297.5L723.3,297.6L717.4,292.1L706.1,271.9ZM725,300.8L727.1,297.7L734.1,299.4L745.8,301.2L746.8,303.3L754.4,305.9L751,307.2L733.2,303.9ZM736.4,279.5L738,271.3L740.5,275.4L747.2,273L752.3,273.2L755.7,263.6L761.5,264.1L760,267.2L765,274.9L761.6,275.3L760.7,280.6L757.9,282.9L756.5,291.4L752.8,291.7L748.3,288.4L744.8,289.6L739.5,287.8ZM750.9,262.8L754.3,259.8L754.2,263.5ZM764.2,287.3L768,276.1L770.4,273.6L776.3,275L783,273.2L780.7,276.5L768.4,277.2L770.6,282.7L777.5,280L772.2,284.3L776.6,295.8L773.9,295.6L768.6,287.8L768.6,296.4L765.6,295.9L766.3,289.6ZM764.4,216.1L769.2,217L768.5,224.7L769.5,230.1L776.1,231.9L777.1,236.1L773.3,232.7L766.6,231.6L764.5,227.9ZM773.1,254.9L773.5,251.1L784.4,246.9L785.1,249.8L783,259.3L779.5,257.4L777.3,251.8ZM773.7,244.6L777.6,240.4L775.2,247.8ZM777.6,236L781.3,237.3L780,244.1ZM789.2,274.6L790.7,270.7L792.7,272.8L791.3,281ZM790.5,289.3L794.8,287.3L796.5,289.5Z","x":750.2,"y":280.9},"nueva-guinea":{"n":"Nueva Guinea","c":"oc","d":"M798.3,281.1L803.6,279.2L808.3,280.6L809.4,287.2L812.3,289.2L814.8,285.7L820.8,283.6L828.4,286.6L838.6,290.9L842.3,296.2L847,298.3L844.9,300.4L849.2,308.4L854.7,312.4L846.5,311.8L841.8,304.9L838.2,303.5L831.6,309.1L827.1,308.4L824.8,305.7L817.5,306.1L820.8,302.4L819.1,296L807.1,289.8L805.1,291.7L803.1,285.4ZM849.3,296.1L857.6,297.5L852.9,299.1Z","x":830.1,"y":297.6},"australia-occidental":{"n":"Australia Occidental","c":"oc","d":"M734.9,392.6L739.2,385.9L739.9,376.7L738.7,372.2L739.7,359.6L743.7,350.8L764,343.8L768.9,338.8L772.1,332.8L780.9,325.5L785,324.2L788.2,327.7L791.5,326.2L795.8,319.9L801.6,318.5L801.4,315.1L808.5,318.5L808.1,321.4L807.7,324.8L807.1,328.1L806.6,331.5L806,334.8L805.3,338.2L804.6,341.5L803.9,344.9L803.2,348.2L802.4,351.6L801.5,355L800.7,358.3L799.7,361.7L798.8,365L797.8,368.4L796.7,371.8L795.7,375.1L794.5,378.5L793.4,381.9L792.2,385.2L790.9,388.6L790.2,390.6L789.4,387.3L782.7,383.5L767.6,386L761.5,388.5L758.8,391.6L748.5,391.9L742.1,395.5Z","x":776.6,"y":362},"australia-oriental":{"n":"Australia Oriental","c":"oc","d":"M790.2,390.6L790.9,388.6L792.2,385.2L793.4,381.9L794.5,378.5L795.7,375.1L796.7,371.8L797.8,368.4L798.8,365L799.7,361.7L800.7,358.3L801.5,355L802.4,351.6L803.2,348.2L803.9,344.9L804.6,341.5L805.3,338.2L806,334.8L806.6,331.5L807.1,328.1L807.7,324.8L808.1,321.4L808.5,318.5L809.4,318.9L814,319.2L808.5,327.2L817.9,336.1L822.5,336.1L826.3,328.3L827.6,319.4L830.7,313.6L832.9,326.6L836.8,328.1L837,341.4L842.8,346.2L843.5,352.7L849.5,362.6L848.2,372.1L841.8,384L836.6,388.7L827.1,400.1L825.3,403.4L820.1,404.7L812.8,408.8L809.9,406.8L805.9,408.1L799.2,405.4L799.1,399.1L795.9,397.4L797.9,393.2L792.9,396.2L798.8,388.3L791.2,394.9ZM804,423.8L805.7,414.4L813.4,414.7L814.8,415L809.6,422.7ZM852.2,432.7L855.6,429L865.9,423.9L880.7,413.7L881.8,417.9L869.1,426.1L863.1,431.6L858,434ZM885.4,410.4L888.8,408L892.4,400.5L891.4,393.7L894.7,396.2L893.9,402.7L898.1,405.2L901.5,404.3L892.4,412.3L887.5,416.3Z","x":823.1,"y":367.8}},"sphere":"M135.36,7.706L421.415,7.706L707.471,7.706L731.685,10.162L750.342,14.612L765.492,20.353L778.487,26.926L801.11,41.528L821.627,57.271L840.885,73.817L858.802,91.066L875.099,108.931L889.573,127.281L902.143,145.956L912.823,164.811L921.68,183.731L928.794,202.646L934.243,221.525L938.089,240.363L940.378,259.17L941.138,277.96L940.378,296.751L938.089,315.558L934.243,334.396L928.794,353.275L921.68,372.19L912.823,391.11L902.143,409.964L889.573,428.64L875.099,446.989L858.802,464.854L840.885,482.104L821.627,498.649L801.11,514.393L778.487,528.995L765.492,535.567L750.342,541.309L731.685,545.759L707.471,548.214L421.415,548.214L135.36,548.214L111.145,545.759L92.489,541.309L77.339,535.567L64.344,528.995L41.721,514.393L21.204,498.649L1.945,482.104L-15.971,464.854L-32.269,446.989L-46.742,428.64L-59.312,409.964L-69.993,391.11L-78.849,372.19L-85.963,353.275L-91.412,334.396L-95.258,315.558L-97.548,296.751L-98.308,277.96L-97.548,259.17L-95.258,240.363L-91.412,221.525L-85.963,202.646L-78.849,183.731L-69.993,164.811L-59.312,145.956L-46.742,127.281L-32.269,108.931L-15.971,91.066L1.945,73.817L21.204,57.271L41.721,41.528L64.344,26.926L77.339,20.353L92.489,14.612L111.145,10.162L135.36,7.706Z","cl":{"na":[22,224.5],"sa":[145,378.5],"eu":[336.4,104.5],"af":[358.1,304.7],"as":[860.6,130.6],"oc":[869.2,378.5]}};
+const W = MAP.w, H = MAP.h;
+const TER = Object.keys(MAP.t);
+const CONT = {
+  na: { n: 'América del Norte', b: 5, lx: 66, ly: 262 },
+  sa: { n: 'América del Sur', b: 2 },
+  eu: { n: 'Europa', b: 5 },
+  af: { n: 'África', b: 3 },
+  as: { n: 'Asia', b: 7 },
+  oc: { n: 'Oceanía', b: 2, lx: 890, ly: 318 },
+};
+for (const c in CONT) if (CONT[c].lx == null) { CONT[c].lx = MAP.cl[c][0]; CONT[c].ly = MAP.cl[c][1]; }
+// [a, b, conexión por mar (se dibuja discontinua)]
+const EDGES = [
+  ['alaska','noroeste'],['alaska','alberta'],['alaska','kamchatka',1],['noroeste','alberta'],['noroeste','ontario'],['noroeste','groenlandia',1],
+  ['alberta','ontario'],['alberta','eeuu-oeste'],['ontario','quebec'],['ontario','groenlandia',1],['ontario','eeuu-oeste'],['ontario','eeuu-este'],
+  ['quebec','groenlandia',1],['quebec','eeuu-este'],['eeuu-oeste','eeuu-este'],['eeuu-oeste','centroamerica'],['eeuu-este','centroamerica'],
+  ['centroamerica','venezuela'],['groenlandia','islandia',1],
+  ['venezuela','peru'],['venezuela','brasil'],['peru','brasil'],['peru','argentina'],['brasil','argentina'],['brasil','africa-norte',1],
+  ['islandia','gran-bretana',1],['islandia','escandinavia',1],['gran-bretana','escandinavia',1],['gran-bretana','europa-norte',1],
+  ['gran-bretana','europa-occidental',1],['escandinavia','europa-norte',1],['escandinavia','ucrania'],['europa-norte','europa-occidental'],
+  ['europa-norte','europa-sur'],['europa-norte','ucrania'],['europa-occidental','europa-sur'],['europa-occidental','africa-norte',1],
+  ['europa-sur','ucrania'],['europa-sur','africa-norte',1],['europa-sur','egipto',1],['europa-sur','oriente-medio'],
+  ['ucrania','ural'],['ucrania','afganistan'],['ucrania','oriente-medio'],
+  ['africa-norte','egipto'],['africa-norte','africa-oriental'],['africa-norte','congo'],['egipto','africa-oriental'],['egipto','oriente-medio'],
+  ['africa-oriental','congo'],['africa-oriental','sudafrica'],['africa-oriental','madagascar',1],['africa-oriental','oriente-medio',1],
+  ['congo','sudafrica'],['sudafrica','madagascar',1],
+  ['ural','siberia'],['ural','china',1],['ural','afganistan'],['siberia','yakutsk'],['siberia','irkutsk'],['siberia','mongolia'],['siberia','china',1],
+  ['yakutsk','irkutsk'],['yakutsk','kamchatka'],['irkutsk','kamchatka'],['irkutsk','mongolia'],['kamchatka','mongolia',1],['kamchatka','japon',1],
+  ['mongolia','japon',1],['mongolia','china'],['afganistan','china'],['afganistan','india'],['afganistan','oriente-medio'],['china','india'],
+  ['china','siam'],['oriente-medio','india'],['india','siam'],['siam','indonesia'],
+  ['indonesia','nueva-guinea',1],['indonesia','australia-occidental',1],['nueva-guinea','australia-occidental',1],['nueva-guinea','australia-oriental',1],
+  ['australia-occidental','australia-oriental'],
+];
+const ADJ = Object.fromEntries(TER.map(t => [t, []]));
+for (const [a, b] of EDGES) { ADJ[a].push(b); ADJ[b].push(a); }
+const DOMINIO = 28;
+const MAX_PLAYERS = 5;
+const COLOR_NAMES = ['Bermellón', 'Cobalto', 'Ocre', 'Violeta', 'Carbón'];
+const BOT_NAMES = ['Mariscal', 'Almirante', 'Coronela', 'Capitán'];
+const tname = id => MAP.t[id].n;
+
+// ===================== GAME LOGIC (pure) =====================
+const clone = o => JSON.parse(JSON.stringify(o));
+const die = () => 1 + Math.floor(Math.random() * 6);
+const rollN = n => Array.from({ length: n }, die).sort((a, b) => b - a);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function owned(s, p) { return TER.filter(t => s.owner[t] === p); }
+function contOwner(s, c) {
+  const ts = TER.filter(t => MAP.t[t].c === c);
+  const o = s.owner[ts[0]];
+  return ts.every(t => s.owner[t] === o) ? o : null;
+}
+// Refuerzos: territorios ÷ 3 (mínimo 3) + bonus de continentes completos + 2 si conquistó en su turno anterior
+function reinfParts(s, p) {
+  const n = owned(s, p).length, base = Math.floor(n / 3);
+  const parts = [{ l: `${n} territorios ÷ 3` + (base < 3 ? ' (mínimo 3)' : ''), v: Math.max(3, base) }];
+  for (const c in CONT) if (contOwner(s, c) === p) parts.push({ l: CONT[c].n, v: CONT[c].b });
+  if (s.players[p].bonus) parts.push({ l: 'Conquista en tu turno anterior', v: s.players[p].bonus });
+  return parts;
+}
+function reinfFor(s, p) { return reinfParts(s, p).reduce((a, x) => a + x.v, 0); }
+function pushLog(s, e) { s.log = [e, ...(s.log || [])].slice(0, 40); }
+function beginTurn(s, p) {
+  s.turn = p; s.phase = 'reinforce';
+  s.reinfParts = reinfParts(s, p); s.reinf = reinfFor(s, p);
+  s.players[p].bonus = 0; s.conquered = false; s.pendingMove = null; s.botAtk = 0;
+  pushLog(s, { k: 'turn', p, r: s.round });
+}
+function startGame(s) {
+  const n = s.players.length;
+  s.owner = {}; s.troops = {};
+  shuffle(TER.slice()).forEach((t, i) => { s.owner[t] = i % n; s.troops[t] = 1; });
+  const extra = { 2: 22, 3: 15, 4: 11, 5: 9 }[n] || 10;
+  for (let p = 0; p < n; p++) {
+    const o = owned(s, p);
+    for (let k = 0; k < extra; k++) s.troops[o[Math.floor(Math.random() * o.length)]]++;
+  }
+  s.players.forEach(pl => { pl.alive = true; pl.bonus = 0; });
+  s.status = 'playing'; s.round = 1; s.winner = null; s.lastRoll = null; s.log = [];
+  pushLog(s, { k: 'start' });
+  beginTurn(s, Math.floor(Math.random() * n));
+}
+function placeTroops(s, draft) {
+  let total = 0;
+  for (const [t, n] of Object.entries(draft)) { if (s.owner[t] !== s.turn || n <= 0) continue; s.troops[t] += n; total += n; }
+  s.reinf -= total;
+  pushLog(s, { k: 'reinf', p: s.turn, n: total });
+  if (s.reinf <= 0) { s.reinf = 0; s.phase = 'attack'; }
+}
+function checkWin(s) {
+  const alive = s.players.map((p, i) => p.alive ? i : -1).filter(i => i >= 0);
+  let w = null;
+  if (alive.length === 1) w = alive[0];
+  else if (s.goal !== 'total') w = alive.find(p => owned(s, p).length >= DOMINIO) ?? null;
+  // Partida de práctica: si ya no queda ningún humano, gana el bot con más territorios
+  if (w === null && s.players.some(p => !p.bot) && !alive.some(i => !s.players[i].bot)) {
+    w = alive.sort((a, b) => owned(s, b).length - owned(s, a).length)[0];
+  }
+  if (w !== null) { s.status = 'ended'; s.winner = w; s.pendingMove = null; pushLog(s, { k: 'win', p: w }); }
+  return w !== null;
+}
+function attack(s, from, to, blitz, stopAt = 1) {
+  const me = s.turn;
+  if (s.owner[from] !== me || s.owner[to] === me || !ADJ[from].includes(to) || s.troops[from] < 2) return;
+  let la = 0, ld = 0, a = [], d = [], rolls = 0;
+  do {
+    const an = Math.min(3, s.troops[from] - 1), dn = Math.min(2, s.troops[to]);
+    a = rollN(an); d = rollN(dn); rolls++;
+    for (let i = 0; i < Math.min(an, dn); i++) {
+      if (a[i] > d[i]) { s.troops[to]--; ld++; } else { s.troops[from]--; la++; }
+    }
+  } while (blitz && s.troops[to] > 0 && s.troops[from] > Math.max(1, stopAt));
+  const def = s.owner[to];
+  s.lastRoll = { by: me, def, from, to, a, d, la, ld, rolls, seq: ((s.lastRoll && s.lastRoll.seq) || 0) + 1 };
+  pushLog(s, { k: 'atk', p: me, from, to, la, ld });
+  if (s.troops[to] === 0) {
+    const mv = a.length;
+    s.owner[to] = me; s.troops[from] -= mv; s.troops[to] = mv; s.conquered = true;
+    pushLog(s, { k: 'conq', p: me, t: to });
+    if (owned(s, def).length === 0) { s.players[def].alive = false; pushLog(s, { k: 'elim', p: def }); }
+    if (checkWin(s)) return;
+    if (s.troops[from] > 1) s.pendingMove = { from, to };
+  }
+}
+function confirmMove(s, extra) {
+  const pm = s.pendingMove; if (!pm) return;
+  extra = Math.max(0, Math.min(extra, s.troops[pm.from] - 1));
+  s.troops[pm.from] -= extra; s.troops[pm.to] += extra; s.pendingMove = null;
+}
+function reachable(s, from) {
+  const p = s.owner[from], seen = new Set([from]), q = [from];
+  while (q.length) { const t = q.shift(); for (const n of ADJ[t]) if (!seen.has(n) && s.owner[n] === p) { seen.add(n); q.push(n); } }
+  seen.delete(from); return seen;
+}
+function endTurn(s) {
+  if (s.conquered) s.players[s.turn].bonus = 2;
+  const n = s.players.length;
+  let nx = s.turn;
+  for (let i = 1; i <= n; i++) { const c = (s.turn + i) % n; if (s.players[c].alive) { nx = c; break; } }
+  if (nx <= s.turn) s.round++;
+  beginTurn(s, nx);
+}
+function fortify(s, from, to, n) {
+  if (from && to && n > 0 && reachable(s, from).has(to)) {
+    n = Math.min(n, s.troops[from] - 1);
+    s.troops[from] -= n; s.troops[to] += n;
+    pushLog(s, { k: 'fort', p: s.turn, from, to, n });
+  }
+  endTurn(s);
+}
+function skipTurn(s) {
+  if (s.pendingMove) s.pendingMove = null;
+  if (s.phase === 'reinforce' && s.reinf > 0) {
+    const o = owned(s, s.turn);
+    for (let i = 0; i < s.reinf; i++) s.troops[o[Math.floor(Math.random() * o.length)]]++;
+    s.reinf = 0;
+  }
+  pushLog(s, { k: 'skip', p: s.turn });
+  endTurn(s);
+}
+
+// ----- Bots: one step per call; the host's page drives them -----
+const enemyNb = (s, t) => ADJ[t].filter(n => s.owner[n] !== s.owner[t]);
+function contShare(s, c, p) { const ts = TER.filter(t => MAP.t[t].c === c); return ts.filter(t => s.owner[t] === p).length / ts.length; }
+const threat = (s, t) => enemyNb(s, t).reduce((a, n) => a + s.troops[n], 0) - s.troops[t];
+function botStep(s) {
+  const p = s.turn, hard = s.players[p].lvl !== 'facil';
+  const mine = owned(s, p);
+  if (s.phase === 'reinforce') {
+    const front = mine.filter(t => enemyNb(s, t).length);
+    const pool = front.length ? front : mine;
+    const d = {};
+    if (!hard) {
+      for (let i = 0; i < s.reinf; i++) { const t = pool[Math.floor(Math.random() * pool.length)]; d[t] = (d[t] || 0) + 1; }
+    } else {
+      let best = pool[0], bs = -1e9;
+      for (const t of pool) for (const n of enemyNb(s, t)) {
+        const sc = s.troops[t] - s.troops[n] + 6 * contShare(s, MAP.t[n].c, p) + Math.random();
+        if (sc > bs) { bs = sc; best = t; }
+      }
+      const main = Math.ceil(s.reinf * 0.7);
+      d[best] = main;
+      if (s.reinf > main) {
+        const thr = pool.slice().sort((x, y) => threat(s, y) - threat(s, x))[0];
+        d[thr] = (d[thr] || 0) + s.reinf - main;
+      }
+    }
+    placeTroops(s, d);
+    return;
+  }
+  if (s.phase === 'attack') {
+    if (s.pendingMove) {
+      const { from } = s.pendingMove;
+      confirmMove(s, enemyNb(s, from).length ? Math.floor((s.troops[from] - 1) / 2) : s.troops[from] - 1);
+      return;
+    }
+    let best = null, bs = -1e9;
+    for (const a of mine) {
+      if (s.troops[a] < 3) continue;
+      for (const b of enemyNb(s, a)) {
+        const diff = s.troops[a] - s.troops[b];
+        if (diff < (hard ? 2 : 1 + Math.floor(Math.random() * 4))) continue;
+        const sc = diff + (hard ? 8 : 2) * contShare(s, MAP.t[b].c, p) + (s.troops[b] === 1 ? 2 : 0) + Math.random();
+        if (sc > bs) { bs = sc; best = [a, b]; }
+      }
+    }
+    const done = s.botAtk || 0;
+    if (best && done < (hard ? 30 : 8)) { s.botAtk = done + 1; attack(s, best[0], best[1], true, 2); return; }
+    s.botAtk = 0; s.phase = 'fortify';
+    return;
+  }
+  if (s.phase === 'fortify') {
+    const interior = mine.filter(t => !enemyNb(s, t).length && s.troops[t] > 1).sort((x, y) => s.troops[y] - s.troops[x]);
+    for (const from of interior) {
+      const r = [...reachable(s, from)].filter(t => enemyNb(s, t).length);
+      if (r.length) { r.sort((x, y) => threat(s, y) - threat(s, x)); fortify(s, from, r[0], s.troops[from] - 1); return; }
+    }
+    fortify(s, null, null, 0);
+  }
+}
+// ===================== END LOGIC =====================
+
+// ===================== DOM helpers =====================
+const SVGNS = 'http://www.w3.org/2000/svg';
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === false || v == null) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'style') el.style.cssText = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return el;
+}
+function s_(tag, attrs) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if ((k === 'fill' || k === 'stroke') && String(v).startsWith('var(')) el.style[k] = v; else el.setAttribute(k, v);
+  }
+  return el;
+}
+const pc = c => `var(--p${c})`;
+const pink = c => `var(--p${c}-ink)`;
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3800);
+}
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+function playerChip(s, p) {
+  const pl = s.players[p];
+  return h('span', { class: 'chip' }, h('span', { class: 'dot', style: `background:${pc(pl.color)}` }), h('b', null, pl.alias || 'Jugador'));
+}
+
+// ===================== STATE =====================
+let db = null, user = null, ME = null, CAN_WRITE = true;
+let games = [], gamesState = 'loading';
+let G = null, GID = null, unsubGame = null;
+let ui = { sel: null, tgt: null, draft: {}, info: null, moveN: null, fortTo: null, fortN: 1, lastSeq: 0, confirmDel: false };
+let writeChain = Promise.resolve();
+let forceSync = false;
+
+const randomCode = () => Array.from({ length: 5 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function errMsg(e) {
+  const c = e && e.code;
+  if (c === 'conflict') return 'Alguien ha movido a la vez. He actualizado la partida; repite tu jugada.';
+  if (c === 'invalid_argument') return 'No se pudo guardar la jugada.';
+  if (c === 'quota_exceeded') return 'Se ha llenado el espacio de partidas. Borra alguna partida antigua.';
+  if (c === 'resource_exhausted') return 'Demasiadas jugadas seguidas. Espera un momento.';
+  return 'No se pudo guardar la jugada. Revisa la conexión e inténtalo otra vez.';
+}
+
+// Write the full game state (only the player whose turn it is writes during play).
+function commit(fn) {
+  if (!G || !db) return;
+  const s = clone(G);
+  fn(s);
+  s.rev = (G.rev || 0) + 1; s.updatedAt = Date.now();
+  G = s;
+  renderGame();
+  const ref = db.doc('games/' + GID);
+  writeChain = writeChain.then(() => ref.set(s)).catch(e => {
+    toast(errMsg(e));
+    if (e && e.code === 'conflict') { forceSync = true; if (db.resync) db.resync(); }
+  });
+}
+// Read-modify-write under a short lease, for lobby changes several people may make at once.
+async function locked(id, fn) {
+  const ref = db.doc('games/' + id);
+  for (let i = 0; i < 8; i++) {
+    try {
+      const r = await ref.acquire({ holder: ME, ttlMs: 4000 });
+      if (r.acquired) {
+        const snap = await ref.get();
+        const cur = snap.exists ? clone(snap.data()) : null;
+        const next = fn(cur);
+        if (next === 'delete') { await ref.delete(); return true; }
+        if (next) { next.rev = ((cur && cur.rev) || 0) + 1; next.updatedAt = Date.now(); await ref.set(next); }
+        return true;
+      }
+    } catch (e) {
+      if (e && e.code === 'conflict') { await sleep(300 + Math.random() * 400); continue; }
+      toast(errMsg(e)); return false;
+    }
+    await sleep(350 + Math.random() * 500);
+  }
+  toast('La sala está ocupada. Inténtalo de nuevo.');
+  return false;
+}
+
+// ===================== MAP =====================
+// Figuras: soldado = 1, caballo = 5, cañón = 10 (dibujadas en una caja de 16×16)
+function pieceIcon(type, ink, bg) {
+  const g = s_('g');
+  if (type === 'cannon') {
+    g.append(s_('path', { d: 'M1.5 9.2 11.8 3.6l1.6 2.9L3.1 12z', fill: ink }), s_('circle', { cx: 6, cy: 11.6, r: 3.3, fill: ink }),
+      s_('circle', { cx: 6, cy: 11.6, r: 1.2, fill: bg }), s_('rect', { x: 0, y: 14, width: 12, height: 1.6, rx: .8, fill: ink }));
+  } else if (type === 'horse') {
+    g.append(s_('path', { d: 'M3 15.5h10.5l-.6-3.2c-.4-2.4.9-4.6.4-7.3C12.7 2.4 10.4.6 7.6 1l.3 1.6-2.3.9L2.4 8.1l.9 1.9 2.3-.6 1.6-1.2c.3 1.6-.8 2.8-2.3 4z', fill: ink }),
+      s_('circle', { cx: 7.2, cy: 5.1, r: .9, fill: bg }));
+  } else {
+    g.append(s_('circle', { cx: 7, cy: 3.4, r: 2.6, fill: ink }), s_('path', { d: 'M4.2 2.6h5.6L9.4 1.2H4.6z', fill: ink }),
+      s_('path', { d: 'M3.6 6.9h6.8l.9 5.1H9.6l-.5 3.8H7.8L7 12.4l-.8 3.4H4.9l-.5-3.8H2.7z', fill: ink }),
+      s_('rect', { x: 11.2, y: 2, width: 1.2, height: 10, rx: .5, fill: ink }));
+  }
+  return g;
+}
+function pieces(n) {
+  const c10 = Math.floor(n / 10), c5 = Math.floor((n % 10) / 5), c1 = n % 5;
+  return [['cannon', c10], ['horse', c5], ['soldier', c1]].filter(x => x[1] > 0);
+}
+function piecesText(n) {
+  const names = { cannon: ['cañón', 'cañones'], horse: ['caballo', 'caballos'], soldier: ['soldado', 'soldados'] };
+  return pieces(n).map(([t, k]) => `${k} ${names[t][k > 1 ? 1 : 0]}`).join(', ');
+}
+// Draw the army pill into a badge group
+function drawArmy(b, n, color) {
+  const bg = pc(color), ink = pink(color);
+  const groups = pieces(n);
+  const widths = groups.map(([, k]) => 16 + (k > 1 ? 3 + 7 * String(k).length : 0));
+  const w = widths.reduce((a, x) => a + x, 0) + 4 * (groups.length - 1) + 12;
+  b.pill.replaceChildren();
+  b.pill.append(s_('rect', { x: -w / 2, y: -11, width: w, height: 22, rx: 11, fill: bg, class: 'pillbg' }));
+  let x = -w / 2 + 6;
+  groups.forEach(([t, k], i) => {
+    const ic = pieceIcon(t, ink, bg); ic.setAttribute('transform', `translate(${x} -8)`); b.pill.append(ic);
+    if (k > 1) { const tx = s_('text', { x: x + 18, y: 1, class: 'pcount', fill: ink }); tx.textContent = k; b.pill.append(tx); }
+    x += widths[i] + 4;
+  });
+  b.w = w;
+}
+
+function buildMapSVG(interactive) {
+  const svg = s_('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Mapa del mundo dividido en ${TER.length} territorios y 6 continentes` });
+  svg.append(s_('path', { d: MAP.sphere, fill: 'var(--sea)' }));
+  const gT = s_('g'), gR = s_('g'), gC = s_('g'), gH = s_('g'), gB = s_('g');
+  for (const [a, b, sea] of EDGES) {
+    if (!sea) continue;
+    const A = MAP.t[a], B = MAP.t[b];
+    if (a === 'alaska' && b === 'kamchatka') {
+      gR.append(s_('line', { class: 'route', x1: A.x, y1: A.y, x2: 4, y2: A.y - 6 }));
+      gR.append(s_('line', { class: 'route', x1: B.x, y1: B.y, x2: W - 4, y2: B.y - 6 }));
+    } else gR.append(s_('line', { class: 'route', x1: A.x, y1: A.y, x2: B.x, y2: B.y }));
+  }
+  for (const [c, v] of Object.entries(CONT)) {
+    const t1 = s_('text', { x: v.lx, y: v.ly, class: 'clname' }); t1.textContent = v.n.toUpperCase();
+    const t2 = s_('text', { x: v.lx, y: v.ly + 21, class: 'clbonus', fill: `var(--c-${c})` }); t2.textContent = '+' + v.b;
+    gC.append(t1, t2);
+  }
+  const paths = {}, badges = {};
+  for (const id of TER) {
+    const p = s_('path', { d: MAP.t[id].d, class: 'terr', 'data-id': id, fill: `var(--c-${MAP.t[id].c})` });
+    const tt = s_('title'); tt.textContent = tname(id); p.append(tt);
+    gT.append(p); paths[id] = p;
+    if (interactive) {
+      const g = s_('g', { class: 'badge', 'data-id': id, tabindex: 0, role: 'button', 'aria-label': tname(id) });
+      const pill = s_('g');
+      const plus = s_('g', { class: 'plus' }); plus.style.display = 'none';
+      plus.append(s_('rect', { x: -12, y: -29, width: 24, height: 15, rx: 7 }));
+      const pt = s_('text', { x: 0, y: -21 }); plus.append(pt);
+      const nm = s_('text', { x: 0, y: 23, class: 'tname' }); nm.textContent = tname(id);
+      g.append(nm, pill, plus);
+      gB.append(g);
+      badges[id] = { g, pill, plus, pt, nm };
+    }
+  }
+  svg.append(gT, gR, gC, gH, gB);
+  return { svg, paths, badges, gH };
+}
+
+// Lobby preview map (static)
+function heroMap() {
+  const { svg } = buildMapSVG(false);
+  svg.setAttribute('class', 'hero-map');
+  return svg;
+}
+
+// Interactive game map with pan / pinch / wheel zoom
+let M = null;
+function setupGameMap(wrap) {
+  M = buildMapSVG(true);
+  M.svg.id = 'map';
+  wrap.append(M.svg);
+  const vb = { x: 0, y: 0, w: W, h: H };
+  let fitW = W, ar = W / H, rect = { width: 1, height: 1, left: 0, top: 0 };
+  M.vb = vb;
+  const measure = () => {
+    const r = M.svg.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    rect = r; ar = r.width / r.height; fitW = ar > W / H ? H * ar : W; return true;
+  };
+  const apply = () => {
+    vb.w = Math.min(fitW, Math.max(fitW / 7, vb.w)); vb.h = vb.w / ar;
+    vb.x = Math.min(W - vb.w / 2, Math.max(-vb.w / 2, vb.x));
+    vb.y = Math.min(H - vb.h / 2, Math.max(-vb.h / 2, vb.y));
+    if (vb.w >= fitW - .01) { vb.x = (W - vb.w) / 2; vb.y = (H - vb.h) / 2; }
+    M.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    const k = vb.w / rect.width;
+    M.svg.classList.toggle('zoomed', 1 / k >= 1.9);
+    for (const id of TER) { const t = MAP.t[id]; M.badges[id].g.setAttribute('transform', `translate(${t.x} ${t.y}) scale(${k})`); }
+  };
+  const fit = () => { if (!measure()) return; vb.w = fitW; apply(); };
+  const toMap = (cx, cy) => ({ x: vb.x + (cx - rect.left) * vb.w / rect.width, y: vb.y + (cy - rect.top) * vb.h / rect.height });
+  const zoomAt = (f, cx, cy) => {
+    const p = toMap(cx, cy);
+    const nw = Math.min(fitW, Math.max(fitW / 7, vb.w * f)), k = nw / vb.w;
+    vb.x = p.x - (p.x - vb.x) * k; vb.y = p.y - (p.y - vb.y) * k; vb.w = nw; apply();
+  };
+  M.zoomAt = zoomAt; M.fit = fit;
+  M.zoomCenter = f => { measure(); zoomAt(f, rect.left + rect.width / 2, rect.top + rect.height / 2); };
+  new ResizeObserver(() => {
+    const z = fitW / vb.w, cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2;
+    if (!measure()) return;
+    vb.w = fitW / z; vb.h = vb.w / ar; vb.x = cx - vb.w / 2; vb.y = cy - vb.h / 2; apply();
+  }).observe(M.svg);
+  requestAnimationFrame(fit);
+
+  const ptrs = new Map();
+  let drag = null, pinch = null, moved = false, downId = null;
+  const svg = M.svg;
+  svg.addEventListener('pointerdown', e => {
+    measure();
+    try { svg.setPointerCapture(e.pointerId); } catch {}
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) {
+      const hit = e.target.closest && e.target.closest('[data-id]');
+      downId = hit ? hit.getAttribute('data-id') : null;
+      drag = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y }; moved = false;
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), w: vb.w, p: toMap(mx, my) }; moved = true;
+    }
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size >= 2 && pinch) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      vb.w = Math.min(fitW, Math.max(fitW / 7, pinch.w * pinch.d / d)); vb.h = vb.w / ar;
+      vb.x = pinch.p.x - (mx - rect.left) * vb.w / rect.width;
+      vb.y = pinch.p.y - (my - rect.top) * vb.h / rect.height;
+      apply();
+    } else if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) > 7) { moved = true; svg.classList.add('dragging'); }
+      if (moved) { vb.x = drag.vx - dx * vb.w / rect.width; vb.y = drag.vy - dy * vb.h / rect.height; apply(); }
+    }
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size === 0) {
+      if (!moved && downId && e.type === 'pointerup') onTerr(downId);
+      drag = null; pinch = null; downId = null; svg.classList.remove('dragging');
+    } else if (ptrs.size === 1) {
+      const [a] = [...ptrs.values()]; pinch = null; drag = { x: a.x, y: a.y, vx: vb.x, vy: vb.y };
+    }
+  };
+  svg.addEventListener('pointerup', up);
+  svg.addEventListener('pointercancel', up);
+  svg.addEventListener('wheel', e => { e.preventDefault(); measure(); zoomAt(Math.exp(e.deltaY * 0.0016), e.clientX, e.clientY); }, { passive: false });
+  svg.addEventListener('keydown', e => {
+    const g = e.target.closest && e.target.closest('.badge');
+    if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTerr(g.getAttribute('data-id')); }
+  });
+}
+
+function myIndex(s) { return s && s.players ? s.players.findIndex(p => p.id === ME) : -1; }
+function isMyTurn() { return G && G.status === 'playing' && G.players[G.turn] && G.players[G.turn].id === ME && CAN_WRITE; }
+
+function paintMap() {
+  if (!M || !G) return;
+  const s = G, playing = s.status !== 'lobby';
+  const mine = isMyTurn();
+  const me = s.turn;
+  const can = new Set(), dim = new Set();
+  let reach = null;
+  if (mine && s.status === 'playing') {
+    if (s.phase === 'reinforce') owned(s, me).forEach(t => can.add(t));
+    else if (s.phase === 'attack' && !s.pendingMove) {
+      owned(s, me).forEach(t => { if (s.troops[t] > 1 && ADJ[t].some(n => s.owner[n] !== me)) can.add(t); });
+      if (ui.sel) ADJ[ui.sel].forEach(n => { if (s.owner[n] !== me) can.add(n); });
+    } else if (s.phase === 'fortify') {
+      owned(s, me).forEach(t => { if (s.troops[t] > 1) can.add(t); });
+      if (ui.sel) { reach = reachable(s, ui.sel); reach.forEach(t => can.add(t)); }
+    }
+    if (s.phase === 'attack' && ui.sel) TER.forEach(t => { if (t !== ui.sel && !ADJ[ui.sel].includes(t)) dim.add(t); });
+    if (s.phase === 'fortify' && ui.sel && reach) TER.forEach(t => { if (t !== ui.sel && !reach.has(t)) dim.add(t); });
+  }
+  for (const id of TER) {
+    const p = M.paths[id], b = M.badges[id];
+    p.classList.toggle('can', can.has(id));
+    p.classList.toggle('dim', dim.has(id));
+    b.g.classList.toggle('dim', dim.has(id));
+    b.g.style.display = playing ? '' : 'none';
+    if (!playing) continue;
+    const col = s.players[s.owner[id]].color;
+    const add = (mine && s.phase === 'reinforce' && ui.draft[id]) || 0;
+    const n = s.troops[id] + add;
+    if (b.key !== `${n}|${col}`) { drawArmy(b, n, col); b.key = `${n}|${col}`; }
+    b.g.setAttribute('aria-label', `${tname(id)}: ${n} tropas de ${s.players[s.owner[id]].alias}`);
+    b.plus.style.display = add ? '' : 'none';
+    b.pt.textContent = '+' + add;
+  }
+  M.gH.replaceChildren();
+  const outline = (id, cls) => M.gH.append(s_('path', { d: MAP.t[id].d, class: 'hl ' + cls }));
+  const lr = s.lastRoll;
+  if (playing && lr && lr.seq !== ui.paintSeq) {
+    ui.paintSeq = lr.seq;
+    if (lr.seq !== ui.firstSeq) { outline(lr.from, 'hit'); outline(lr.to, 'hit'); }
+  }
+  if (mine) {
+    if (s.phase === 'attack' && s.pendingMove) { outline(s.pendingMove.from, 'sel'); outline(s.pendingMove.to, 'tgt'); }
+    else {
+      if (ui.sel) outline(ui.sel, 'sel');
+      if (ui.tgt) outline(ui.tgt, 'tgt');
+      if (s.phase === 'fortify' && ui.fortTo) outline(ui.fortTo, 'tgt');
+    }
+  } else if (ui.info) outline(ui.info, 'tgt');
+}
+
+// ===================== TAP HANDLING =====================
+function onTerr(id) {
+  const s = G; if (!s) return;
+  if (s.status !== 'playing' || !isMyTurn()) { ui.info = id; renderGame(); return; }
+  const me = s.turn;
+  if (s.phase === 'reinforce') {
+    if (s.owner[id] !== me) { ui.info = id; renderGame(); return; }
+    const used = Object.values(ui.draft).reduce((a, b) => a + b, 0);
+    if (used >= s.reinf) { toast('Ya has colocado todas tus tropas. Confirma o deshaz.'); return; }
+    ui.draft[id] = (ui.draft[id] || 0) + 1; ui.sel = id;
+  } else if (s.phase === 'attack') {
+    if (s.pendingMove) return;
+    if (s.owner[id] === me) {
+      if (s.troops[id] < 2) { toast(`${tname(id)} necesita al menos 2 tropas para atacar.`); return; }
+      if (!ADJ[id].some(n => s.owner[n] !== me)) { toast(`${tname(id)} no tiene vecinos enemigos.`); return; }
+      ui.sel = ui.sel === id ? null : id; ui.tgt = null;
+    } else if (ui.sel && ADJ[ui.sel].includes(id)) {
+      ui.tgt = id;
+    } else { ui.info = id; if (ui.sel) toast(`${tname(id)} no es vecino de ${tname(ui.sel)}.`); }
+  } else if (s.phase === 'fortify') {
+    if (s.owner[id] !== me) { ui.info = id; renderGame(); return; }
+    if (ui.sel && reachable(s, ui.sel).has(id)) { ui.fortTo = id; ui.fortN = Math.max(1, Math.floor((s.troops[ui.sel] - 1) / 2)); }
+    else if (s.troops[id] > 1) { ui.sel = id; ui.fortTo = null; }
+    else toast(`${tname(id)} solo tiene 1 tropa; elige otro origen.`);
+  }
+  renderGame();
+}
+
+// ===================== RENDER: GAME =====================
+const PHASES = [['reinforce', 'Refuerzos'], ['attack', 'Ataque'], ['fortify', 'Movimiento']];
+function dieSVG(n, fill, ink) {
+  const svg = s_('svg', { viewBox: '0 0 30 30', 'aria-hidden': 'true' });
+  svg.append(s_('rect', { x: 1.5, y: 1.5, width: 27, height: 27, rx: 6, fill, stroke: 'rgba(0,0,0,.35)', 'stroke-width': 1 }));
+  const P = { 1: [[15, 15]], 2: [[9, 9], [21, 21]], 3: [[8, 8], [15, 15], [22, 22]], 4: [[9, 9], [21, 9], [9, 21], [21, 21]], 5: [[8, 8], [22, 8], [15, 15], [8, 22], [22, 22]], 6: [[9, 8], [21, 8], [9, 15], [21, 15], [9, 22], [21, 22]] }[n];
+  for (const [x, y] of P) svg.append(s_('circle', { cx: x, cy: y, r: 2.6, fill: ink }));
+  return svg;
+}
+function logLine(s, e) {
+  const pl = e.p != null ? s.players[e.p] : null;
+  const who = pl ? [h('span', { class: 'dot', style: `background:${pc(pl.color)}` }), h('b', null, pl.alias)] : [];
+  const txt = {
+    start: () => ['Empieza la partida. El mapa se ha repartido al azar.'],
+    turn: () => [...who, ` empieza su turno (ronda ${e.r}).`],
+    reinf: () => [...who, ` coloca ${e.n} tropas.`],
+    atk: () => [...who, ` ataca ${tname(e.to)} desde ${tname(e.from)}: pierde ${e.la}, el defensor pierde ${e.ld}.`],
+    conq: () => [...who, ` conquista ${tname(e.t)}.`],
+    elim: () => [...who, ' queda eliminado.'],
+    fort: () => [...who, ` mueve ${e.n} tropas de ${tname(e.from)} a ${tname(e.to)}.`],
+    skip: () => ['Se salta el turno de ', ...who.slice(1), '.'],
+    win: () => [...who, ' domina el mundo.'],
+  }[e.k];
+  return h('li', null, h('span', null, ...(txt ? txt() : [''])));
+}
+
+function breakdownEl(s) {
+  const parts = s.reinfParts || [];
+  return h('div', { class: 'breakdown', 'aria-label': 'De dónde salen los refuerzos' },
+    parts.map(x => h('div', null, h('span', null, x.l), h('b', null, '+' + x.v))));
+}
+function pieceKey() {
+  const item = (t, label) => {
+    const svg = s_('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+    svg.append(pieceIcon(t, 'var(--cream)', 'var(--felt)'));
+    return h('span', null, svg, label);
+  };
+  return h('div', { class: 'piece-key' }, item('soldier', 'Soldado = 1'), item('horse', 'Caballo = 5'), item('cannon', 'Cañón = 10'));
+}
+
+function renderOrders(s) {
+  const box = h('div', { class: 'orders' });
+  if (s.status === 'ended') {
+    const w = s.players[s.winner];
+    box.className = 'winner';
+    box.append(
+      h('div', { class: 'eyebrow' }, 'Fin de la partida'),
+      h('div', { class: 'title' }, w.alias),
+      h('p', { class: 'note' }, s.players.some(p => !p.bot) && !s.players.some(p => !p.bot && p.alive) ? `Ya no quedan jugadores humanos: gana el bot con más territorios (${owned(s, s.winner).length}).` : s.goal === 'total' ? 'Ha eliminado a todos sus rivales.' : `Controla ${owned(s, s.winner).length} de ${TER.length} territorios.`),
+    );
+    if (s.host === ME && CAN_WRITE) box.append(h('div', { class: 'row', style: 'justify-content:center' },
+      h('button', { class: 'btn primary', onclick: () => locked(GID, cur => { if (!cur) return null; startGame(cur); return cur; }) }, 'Revancha con los mismos')));
+    return box;
+  }
+  const cur = s.players[s.turn];
+  const mine = isMyTurn();
+  box.append(h('div', { class: 'phase' }, PHASES.map(([k, n]) => h('span', { class: s.phase === k ? 'on' : '' }, n))));
+  if (!mine) {
+    const verb = { reinforce: 'está colocando refuerzos', attack: 'está atacando', fortify: 'está moviendo tropas' }[s.phase];
+    box.append(h('h3', null, h('span', { class: 'chip' }, h('span', { class: 'dot', style: `background:${pc(cur.color)}` }), cur.alias, ' ', verb)));
+    if (s.phase === 'reinforce') box.append(breakdownEl(s));
+    box.append(h('p', null, cur.bot ? (s.host === ME ? 'Los bots juegan solos mientras tengas esta partida abierta.' : 'Los bots se mueven desde la pantalla del anfitrión.') : myIndex(s) >= 0 ? 'Espera tu turno. Puedes mover el mapa y tocar territorios para ver quién los controla.' : 'Estás mirando esta partida.'));
+    if (s.host === ME && CAN_WRITE && cur.id !== ME && !cur.bot) {
+      box.append(h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => commit(skipTurn) }, `Saltar el turno de ${cur.alias}`)));
+    }
+    return box;
+  }
+  if (s.phase === 'reinforce') {
+    const used = Object.values(ui.draft).reduce((a, b) => a + b, 0);
+    const left = s.reinf - used;
+    box.append(
+      h('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-end' },
+        h('div', null, h('h3', null, 'Coloca tus refuerzos'), h('p', null, 'Toca tus territorios: cada toque añade una tropa.')),
+        h('div', { class: 'big-count', 'aria-label': `${left} tropas por colocar` }, left)),
+      breakdownEl(s),
+    );
+    const sel = ui.sel && s.owner[ui.sel] === s.turn ? ui.sel : null;
+    box.append(h('div', { class: 'row' },
+      h('button', { class: 'btn small', disabled: !sel || left === 0, onclick: () => { ui.draft[sel] = (ui.draft[sel] || 0) + left; renderGame(); } }, sel ? `Todas a ${tname(sel)}` : 'Todas aquí'),
+      h('button', { class: 'btn small', disabled: left === 0, onclick: () => {
+        const mine = owned(s, s.turn);
+        const front = mine.filter(t => ADJ[t].some(n => s.owner[n] !== s.turn));
+        const pool = front.length ? front : mine;
+        for (let i = 0; i < left; i++) { const t = pool[Math.floor(Math.random() * pool.length)]; ui.draft[t] = (ui.draft[t] || 0) + 1; }
+        renderGame();
+      } }, 'Repartir en fronteras'),
+      h('button', { class: 'btn small', disabled: used === 0, onclick: () => { ui.draft = {}; renderGame(); } }, 'Deshacer'),
+    ));
+    box.append(h('button', { class: 'btn primary', disabled: left !== 0, onclick: () => {
+      const d = ui.draft; ui.draft = {}; ui.sel = null; commit(st => placeTroops(st, d));
+    } }, left === 0 ? 'Confirmar y pasar al ataque' : `Te faltan ${left} por colocar`));
+    return box;
+  }
+  if (s.phase === 'attack') {
+    if (s.pendingMove) {
+      const { from, to } = s.pendingMove;
+      const max = s.troops[from] - 1;
+      if (ui.moveN == null || ui.moveN > max) ui.moveN = max;
+      const out = h('b', { class: 'num', style: 'font-size:28px;color:var(--brass)' }, ui.moveN);
+      box.append(
+        h('h3', null, `Has conquistado ${tname(to)}`),
+        h('p', null, `Ya hay ${s.troops[to]} tropas dentro. ¿Cuántas más mueves desde ${tname(from)}?`),
+        h('div', { class: 'row', style: 'flex-wrap:nowrap' },
+          h('input', { type: 'range', id: 'move-range', min: 0, max, value: ui.moveN, 'aria-label': 'Tropas a mover', oninput: e => { ui.moveN = +e.target.value; out.textContent = ui.moveN; } }),
+          out),
+        h('button', { class: 'btn primary', onclick: () => { const n = ui.moveN; ui.moveN = null; ui.sel = null; ui.tgt = null; commit(st => confirmMove(st, n)); } }, 'Mover tropas'),
+      );
+      return box;
+    }
+    if (ui.sel && (s.owner[ui.sel] !== s.turn || s.troops[ui.sel] < 2)) { ui.sel = null; ui.tgt = null; }
+    if (ui.tgt && s.owner[ui.tgt] === s.turn) ui.tgt = null;
+    if (!ui.sel) {
+      box.append(h('h3', null, 'Ataca'), h('p', null, 'Elige uno de tus territorios con 2 o más tropas. Después, el territorio enemigo vecino que quieres atacar.'));
+    } else if (!ui.tgt) {
+      box.append(h('h3', null, `Atacas desde ${tname(ui.sel)}`), h('p', null, 'Ahora toca un territorio enemigo vecino.'));
+    } else {
+      const A = ui.sel, B = ui.tgt, def = s.players[s.owner[B]];
+      box.append(
+        h('div', { class: 'vs' },
+          h('div', { class: 'side', style: `box-shadow: inset 0 3px 0 ${pc(cur.color)}` }, h('b', null, tname(A)), h('div', { class: 'num' }, s.troops[A])),
+          h('div', { class: 'x' }, 'contra'),
+          h('div', { class: 'side', style: `box-shadow: inset 0 3px 0 ${pc(def.color)}` }, h('b', null, tname(B)), h('div', { class: 'num' }, s.troops[B]))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn primary', onclick: () => commit(st => attack(st, A, B, false)) }, `Tirar dados (${Math.min(3, s.troops[A] - 1)} contra ${Math.min(2, s.troops[B])})`),
+          h('button', { class: 'btn', onclick: () => commit(st => attack(st, A, B, true)) }, 'Ataque total')),
+      );
+    }
+    box.append(h('div', { class: 'row' },
+      ui.sel ? h('button', { class: 'btn small', onclick: () => { ui.sel = null; ui.tgt = null; renderGame(); } }, 'Cambiar origen') : null,
+      h('button', { class: 'btn small', onclick: () => { ui.sel = null; ui.tgt = null; ui.fortTo = null; commit(st => { st.phase = 'fortify'; }); } }, 'Terminar ataques')));
+    return box;
+  }
+  // fortify
+  if (ui.sel && s.owner[ui.sel] !== s.turn) { ui.sel = null; ui.fortTo = null; }
+  box.append(h('h3', null, 'Reorganiza tus tropas'));
+  if (!ui.sel) box.append(h('p', null, 'Puedes hacer un movimiento entre territorios tuyos conectados. Elige el origen o termina el turno.'));
+  else if (!ui.fortTo) box.append(h('p', null, `Origen: ${tname(ui.sel)}. Ahora elige el destino.`));
+  else {
+    const max = s.troops[ui.sel] - 1;
+    ui.fortN = Math.min(Math.max(1, ui.fortN), max);
+    const out = h('b', { class: 'num', style: 'font-size:28px;color:var(--brass)' }, ui.fortN);
+    box.append(
+      h('p', null, `De ${tname(ui.sel)} a ${tname(ui.fortTo)}`),
+      h('div', { class: 'row', style: 'flex-wrap:nowrap' },
+        h('input', { type: 'range', id: 'fort-range', min: 1, max, value: ui.fortN, 'aria-label': 'Tropas a mover', oninput: e => { ui.fortN = +e.target.value; out.textContent = ui.fortN; } }), out),
+      h('button', { class: 'btn primary', onclick: () => { const a = ui.sel, b = ui.fortTo, n = ui.fortN; ui.sel = ui.fortTo = null; commit(st => fortify(st, a, b, n)); } }, 'Mover y terminar turno'),
+    );
+  }
+  box.append(h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => { ui.sel = ui.fortTo = null; commit(st => fortify(st, null, null, 0)); } }, 'Terminar turno sin mover')));
+  return box;
+}
+
+function renderDice(s) {
+  const lr = s.lastRoll; if (!lr || s.status === 'lobby') return null;
+  const att = s.players[lr.by], def = s.players[lr.def];
+  const wrap = h('div', { class: 'dice' + (lr.seq !== ui.lastSeq && ui.lastSeq ? ' roll' : '') },
+    h('div', { class: 'grp', 'aria-label': 'Dados de ataque: ' + lr.a.join(', ') }, lr.a.map(n => dieSVG(n, pc(att.color), pink(att.color)))),
+    h('span', { class: 'eyebrow' }, 'vs'),
+    h('div', { class: 'grp', 'aria-label': 'Dados de defensa: ' + lr.d.join(', ') }, lr.d.map(n => dieSVG(n, pc(def.color), pink(def.color)))));
+  ui.lastSeq = lr.seq;
+  return h('div', { style: 'display:grid;gap:6px' }, wrap,
+    h('div', { class: 'dice-caption' }, `${tname(lr.from)} → ${tname(lr.to)}${lr.rolls > 1 ? ` · ${lr.rolls} tiradas` : ''}: atacante −${lr.la}, defensor −${lr.ld}`));
+}
+
+function renderLobbyRoom(s) {
+  const box = h('div', { class: 'orders' });
+  const mi = myIndex(s);
+  box.append(h('h3', null, 'Sala de espera'), h('p', null, `${s.players.length} de ${MAX_PLAYERS} jugadores. ${s.goal === 'total' ? 'Objetivo: conquista total.' : `Objetivo: controlar ${DOMINIO} territorios.`}`));
+  {
+    const link = location.origin + location.pathname + '#p-' + s.code;
+    const linkEl = h('input', { type: 'text', id: 'room-link', readonly: true, value: link, 'aria-label': 'Enlace de la partida', onfocus: e => e.target.select() });
+    box.append(h('div', { style: 'display:grid;gap:6px' },
+      h('span', { class: 'eyebrow' }, 'Enlace para tus amigos'),
+      h('div', { class: 'row', style: 'flex-wrap:nowrap' }, h('div', { style: 'flex:1;min-width:0;display:grid' }, linkEl),
+        h('button', { class: 'btn small', onclick: async () => {
+          try { await navigator.clipboard.writeText(link); toast('Enlace copiado. Pégalo en WhatsApp.'); }
+          catch { linkEl.focus(); linkEl.select(); toast('Selecciona el enlace y cópialo.'); }
+        } }, 'Copiar'))));
+  }
+  if (!CAN_WRITE) { box.append(h('div', { class: 'banner' }, 'Puedes mirar, pero para jugar el dueño tiene que invitarte como Editor.')); return box; }
+  if (mi < 0) {
+    if (s.players.length >= MAX_PLAYERS) { box.append(h('p', null, 'La sala está llena.')); return box; }
+    box.append(joinForm(s.players.map(p => p.color), (alias, color) => locked(GID, cur => {
+      if (!cur || cur.status !== 'lobby' || cur.players.some(p => p.id === ME) || cur.players.length >= MAX_PLAYERS) return null;
+      const taken = cur.players.map(p => p.color);
+      const c = taken.includes(color) ? [0, 1, 2, 3, 4].find(x => !taken.includes(x)) : color;
+      cur.players.push({ id: ME, alias, color: c }); return cur;
+    }), 'Unirme a la partida'));
+    return box;
+  }
+  if (s.host === ME && s.players.length < MAX_PLAYERS) {
+    const addBot = lvl => locked(GID, cur => {
+      if (!cur || cur.status !== 'lobby' || cur.players.length >= MAX_PLAYERS) return null;
+      const taken = cur.players.map(p => p.color);
+      const nb = cur.players.filter(p => p.bot).length;
+      cur.players.push({ id: 'bot-' + randomCode(), alias: `${BOT_NAMES[nb % BOT_NAMES.length]} (bot)`, color: [0, 1, 2, 3, 4].find(x => !taken.includes(x)), bot: true, lvl });
+      return cur;
+    });
+    box.append(h('div', { class: 'row' },
+      h('button', { class: 'btn small', onclick: () => addBot('facil') }, '+ Bot fácil'),
+      h('button', { class: 'btn small', onclick: () => addBot('dificil') }, '+ Bot difícil')));
+  }
+  if (s.host === ME && s.players.some(p => p.bot)) {
+    box.append(h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => locked(GID, cur => {
+      if (!cur || cur.status !== 'lobby') return null;
+      const i = cur.players.map(p => !!p.bot).lastIndexOf(true); if (i >= 0) cur.players.splice(i, 1); return cur;
+    }) }, 'Quitar un bot')));
+  }
+  if (s.host === ME) {
+    box.append(h('button', { class: 'btn primary', disabled: s.players.length < 2, onclick: () => locked(GID, cur => {
+      if (!cur || cur.status !== 'lobby' || cur.players.length < 2) return null; startGame(cur); return cur;
+    }) }, s.players.length < 2 ? 'Necesitas al menos 2 jugadores' : 'Empezar partida'));
+  } else box.append(h('p', null, 'Esperando a que el anfitrión empiece la partida.'));
+  box.append(h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => locked(GID, cur => {
+    if (!cur || cur.status !== 'lobby') return null;
+    cur.players = cur.players.filter(p => p.id !== ME);
+    if (!cur.players.length) return 'delete';
+    if (cur.host === ME) cur.host = cur.players[0].id;
+    return cur;
+  }).then(() => goLobby()) }, 'Salir de la sala')));
+  return box;
+}
+
+function renderPlayers(s) {
+  const list = h('div', { class: 'players' });
+  s.players.forEach((p, i) => {
+    const n = s.status === 'lobby' ? null : owned(s, i).length;
+    const troops = s.status === 'lobby' ? null : owned(s, i).reduce((a, t) => a + s.troops[t], 0);
+    list.append(h('div', { class: 'prow' + (s.status === 'playing' && s.turn === i ? ' current' : '') + (p.alive === false ? ' out' : '') },
+      h('span', { class: 'dot', style: `background:${pc(p.color)}` }),
+      h('span', { class: 'name' }, p.alias, p.id === ME ? h('em', null, 'tú') : null, p.bot ? h('em', null, p.lvl === 'facil' ? 'bot fácil' : 'bot difícil') : null, p.id === s.host ? h('em', null, 'anfitrión') : null),
+      n == null ? h('span') : h('span', { class: 'stat', title: 'Territorios' }, n, h('small', null, 'terr.')),
+      troops == null ? h('span') : h('span', { class: 'stat', title: 'Tropas' }, troops, h('small', null, 'trop.'))));
+  });
+  return list;
+}
+
+function renderConts(s) {
+  const g = h('div', { class: 'conts' });
+  for (const [c, v] of Object.entries(CONT)) {
+    const o = s.status === 'lobby' ? null : contOwner(s, c);
+    g.append(h('div', null,
+      h('span', { class: 'chip' }, o != null ? h('span', { class: 'dot', style: `background:${pc(s.players[o].color)}` }) : null, v.n),
+      h('b', { title: 'Tropas extra por turno' }, '+' + v.b)));
+  }
+  return g;
+}
+
+function renderGame() {
+  const root = document.getElementById('game');
+  if (!G) return;
+  const s = G;
+  if (!M) {
+    root.replaceChildren();
+    const bar = h('header', { class: 'bar' },
+      h('button', { class: 'btn small', onclick: goLobby, 'aria-label': 'Volver a la lista de partidas' }, '← Partidas'),
+      h('span', { class: 'brand' }, 'Hegemonía'),
+      h('span', { class: 'code', id: 'g-code' }),
+      h('span', { class: 'spacer' }),
+      h('span', { id: 'g-turn' }));
+    const wrap = h('div', { class: 'mapwrap' },
+      h('div', { class: 'zoom' },
+        h('button', { 'aria-label': 'Acercar', onclick: () => M.zoomCenter(1 / 1.5) }, '+'),
+        h('button', { 'aria-label': 'Alejar', onclick: () => M.zoomCenter(1.5) }, '−'),
+        h('button', { 'aria-label': 'Ver mapa entero', onclick: () => M.fit() }, '⤢')));
+    const panel = h('aside', { class: 'panel', id: 'g-panel' });
+    root.append(bar, h('div', { class: 'board' }, wrap, panel));
+    setupGameMap(wrap);
+    wrap.prepend(M.svg);
+  }
+  document.getElementById('g-code').textContent = '#' + s.code;
+  const turnEl = document.getElementById('g-turn');
+  turnEl.replaceChildren();
+  if (s.status === 'playing') {
+    const cur = s.players[s.turn];
+    turnEl.append(h('span', { class: 'turn-chip' }, h('span', { class: 'dot', style: `background:${pc(cur.color)}` }), h('span', { class: 't' }, cur.id === ME ? 'Tu turno' : `Turno de ${cur.alias}`)));
+  }
+  const panel = document.getElementById('g-panel');
+  const scroll = panel.scrollTop;
+  const kids = [];
+  if (s.status === 'lobby') kids.push(renderLobbyRoom(s)); else kids.push(renderOrders(s));
+  if (ui.info && s.status !== 'lobby') {
+    const o = s.owner[ui.info], pl = s.players[o];
+    kids.push(h('div', { class: 'info-line' }, h('b', null, tname(ui.info)), ` · ${CONT[MAP.t[ui.info].c].n} · `, h('span', { class: 'chip' }, h('span', { class: 'dot', style: `background:${pc(pl.color)}` }), pl.alias), ` · ${s.troops[ui.info]} tropas (${piecesText(s.troops[ui.info])})`));
+  }
+  const dice = renderDice(s); if (dice) kids.push(dice);
+  kids.push(h('div', { style: 'display:grid;gap:8px' }, h('div', { class: 'section-title' }, h('span', { class: 'eyebrow' }, 'Jugadores'), s.status === 'playing' ? h('span', { class: 'eyebrow' }, `Ronda ${s.round}`) : null), renderPlayers(s)));
+  kids.push(h('div', { style: 'display:grid;gap:8px' }, h('span', { class: 'eyebrow' }, 'Bonus por continente completo'), renderConts(s)));
+  kids.push(h('div', { style: 'display:grid;gap:8px' }, h('span', { class: 'eyebrow' }, 'Figuras'), pieceKey()));
+  if (s.log && s.log.length) kids.push(h('div', { style: 'display:grid;gap:8px' }, h('span', { class: 'eyebrow' }, 'Crónica'), h('ul', { class: 'log' }, s.log.slice(0, 14).map(e => logLine(s, e)))));
+  if (s.host === ME && CAN_WRITE) {
+    kids.push(h('div', { class: 'row' }, ui.confirmDel
+      ? [h('span', { class: 'note' }, 'Se borrará para todos.'), h('button', { class: 'btn small danger', onclick: async () => { try { await db.doc('games/' + GID).delete(); } catch (e) { toast(errMsg(e)); } goLobby(); } }, 'Sí, borrar'), h('button', { class: 'btn small', onclick: () => { ui.confirmDel = false; renderGame(); } }, 'Cancelar')]
+      : h('button', { class: 'btn small danger', onclick: () => { ui.confirmDel = true; renderGame(); } }, 'Borrar partida')));
+  }
+  panel.replaceChildren(...kids);
+  panel.scrollTop = scroll;
+  paintMap();
+  driveBots();
+}
+
+// The host's page plays the bots' turns, one visible step at a time.
+let botTimer = null;
+function stopBots() { clearTimeout(botTimer); botTimer = null; }
+function driveBots() {
+  if (botTimer || !G || G.status !== 'playing' || G.host !== ME || !CAN_WRITE) return;
+  const cur = G.players[G.turn]; if (!cur || !cur.bot) return;
+  const delay = G.phase === 'reinforce' ? 900 : G.phase === 'fortify' ? 700 : 850;
+  const gid = GID;
+  botTimer = setTimeout(() => {
+    botTimer = null;
+    if (!G || GID !== gid || G.status !== 'playing' || G.host !== ME || !G.players[G.turn].bot) return;
+    commit(botStep);
+  }, delay);
+}
+
+function openGame(id) {
+  stopBots();
+  if (unsubGame) unsubGame();
+  GID = id; G = null; M = null;
+  ui = { sel: null, tgt: null, draft: {}, info: null, moveN: null, fortTo: null, fortN: 1, lastSeq: 0, confirmDel: false };
+  try { history.replaceState(null, '', '#p-' + id); } catch { location.hash = 'p-' + id; }
+  document.getElementById('lobby').hidden = true;
+  const root = document.getElementById('game'); root.hidden = false;
+  document.body.classList.add('ingame');
+  root.replaceChildren(h('div', { class: 'empty', style: 'margin:24px' }, 'Cargando la partida…'));
+  let first = true;
+  const timer = setTimeout(() => { if (!G) root.replaceChildren(h('div', { class: 'empty', style: 'margin:24px' }, 'No se puede conectar con la partida todavía. Revisa la conexión; seguirá intentándolo.', h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn small', onclick: goLobby }, '← Volver')))); }, 10000);
+  unsubGame = db.doc('games/' + id).onSnapshot(snap => {
+    clearTimeout(timer);
+    if (!snap.exists) { if (!snap.metadata.fromCache) { toast('Esa partida ya no existe.'); goLobby(); } return; }
+    const d = clone(snap.data());
+    if (d.owner && Object.keys(d.owner).some(t => !MAP.t[t])) { toast('Esta partida es de una versión anterior del mapa y ya no se puede abrir.'); goLobby(); return; }
+    if (G && !forceSync && (d.rev || 0) < (G.rev || 0)) return;
+    forceSync = false;
+    const turnChanged = !G || G.turn !== d.turn || G.phase !== d.phase || G.status !== d.status;
+    if (turnChanged) { ui.sel = null; ui.tgt = null; ui.fortTo = null; ui.draft = {}; ui.moveN = null; }
+    if (first) { first = false; ui.lastSeq = d.lastRoll ? d.lastRoll.seq : 0; ui.firstSeq = ui.lastSeq; ui.paintSeq = ui.lastSeq; }
+    G = d;
+    if (!document.getElementById('g-panel')) M = null;
+    renderGame();
+  }, e => { clearTimeout(timer); toast(errMsg(e)); });
+}
+
+function goLobby() {
+  stopBots();
+  if (unsubGame) { unsubGame(); unsubGame = null; }
+  G = null; GID = null; M = null;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+  document.getElementById('game').hidden = true;
+  document.getElementById('game').replaceChildren();
+  document.body.classList.remove('ingame');
+  document.getElementById('lobby').hidden = false;
+  renderLobby();
+}
+
+// ===================== RENDER: LOBBY =====================
+function joinForm(takenColors, onSubmit, label) {
+  let color = +(store.get('heg-color') || 0);
+  if (takenColors.includes(color)) color = [0, 1, 2, 3, 4].find(c => !takenColors.includes(c)) ?? 0;
+  const input = h('input', { type: 'text', id: 'alias-' + label.length, maxlength: 16, placeholder: 'Ej.: Marc', value: store.get('heg-alias') || '', autocomplete: 'nickname', oninput: e => store.set('heg-alias', e.target.value) });
+  const sw = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Color del ejército' });
+  const paint = () => [...sw.children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.c === color)));
+  [0, 1, 2, 3, 4].forEach(c => sw.append(h('button', { type: 'button', class: 'swatch', 'data-c': c, style: `background:${pc(c)}`, 'aria-label': COLOR_NAMES[c], title: COLOR_NAMES[c], disabled: takenColors.includes(c), onclick: () => { color = c; store.set('heg-color', String(c)); paint(); } })));
+  paint();
+  const btn = h('button', { class: 'btn primary', type: 'submit' }, label);
+  const form = h('form', { style: 'display:grid;gap:14px', onsubmit: async e => {
+    e.preventDefault();
+    const alias = input.value.trim().slice(0, 16);
+    if (!alias) { toast('Escribe tu nombre de jugador.'); input.focus(); return; }
+    store.set('heg-alias', alias); store.set('heg-color', String(color));
+    btn.disabled = true;
+    try { await onSubmit(alias, color); } finally { btn.disabled = false; }
+  } },
+    h('label', { class: 'field' }, 'Tu nombre de jugador', input),
+    h('div', { class: 'field', style: 'display:grid;gap:6px;font-weight:600;font-size:14px' }, 'Color de tu ejército', sw),
+    btn);
+  form._extra = el => form.insertBefore(el, btn);
+  return form;
+}
+
+function fillGames(gl) {
+  gl.replaceChildren();
+  const cnt = document.getElementById('games-count'); if (cnt) cnt.textContent = games.length ? String(games.length) : '';
+  if (gamesState === 'loading') gl.append(h('div', { class: 'empty' }, 'Buscando partidas…'));
+  else if (gamesState === 'slow') gl.append(h('div', { class: 'empty' }, 'No se puede conectar con las partidas todavía. Seguirá intentándolo.'));
+  else if (gamesState === 'error') gl.append(h('div', { class: 'empty' }, 'No se pudieron cargar las partidas. Recarga la página.'));
+  const shown = games.filter(g => !g.practice || (g.players || []).some(p => p.id === ME));
+  if (cnt) cnt.textContent = shown.length ? String(shown.length) : '';
+  if (gamesState === 'ready' && !shown.length) gl.append(h('div', { class: 'empty' }, 'Todavía no hay partidas. Crea la primera y tus amigos la verán aquí al abrir la página.'));
+  for (const g of shown) {
+    const st = g.status;
+    const mine = (g.players || []).some(p => p.id === ME);
+    const label = st === 'lobby' ? (mine ? 'Ir a la sala' : 'Unirse') : st === 'playing' ? (mine ? 'Jugar' : 'Mirar') : 'Ver final';
+    const pill = { lobby: 'En sala', playing: `Ronda ${g.round || 1}`, ended: 'Terminada' }[st] || st;
+    gl.append(h('div', { class: 'game-card' },
+      h('div', { class: 'row' }, h('span', { class: 'code' }, '#' + g.code), h('span', { class: 'state-pill ' + st }, pill), g.practice ? h('span', { class: 'state-pill' }, 'Práctica') : null),
+      h('button', { class: 'btn small' + (mine && st !== 'ended' ? ' primary' : ''), onclick: () => openGame(g.code) }, label),
+      h('div', { class: 'meta' }, (g.players || []).map(p => h('span', { class: 'chip' }, h('span', { class: 'dot', style: `background:${pc(p.color)}` }), p.alias)),
+        st === 'ended' && g.winner != null && g.players[g.winner] ? h('span', null, `Ganó ${g.players[g.winner].alias}`) : null)));
+  }
+}
+
+function renderLobby() {
+  const root = document.getElementById('lobby');
+  const kids = [];
+  kids.push(h('header', { class: 'hero' },
+    h('div', { class: 'eyebrow' }, 'Estrategia por turnos · 2 a 5 jugadores'),
+    h('h1', null, 'Hege', h('span', null, 'mo'), 'nía'),
+    h('p', null, 'Reparte tus ejércitos, tira los dados y conquista el mundo con tus amigos o practica contra bots. Partidas rápidas, en directo, desde el ordenador o el móvil.'),
+    heroMap()));
+  if (!db || !ME) {
+    kids.push(h('div', { class: 'banner' }, 'Para jugar tienes que abrir esta página con tu cuenta de Claude iniciada. Sin sesión no se pueden guardar ni ver las partidas.'));
+    root.replaceChildren(...kids); return;
+  }
+  // create form
+  const create = h('div', { class: 'sheet' }, h('h2', null, 'Nueva partida'));
+  if (!CAN_WRITE) create.append(h('div', { class: 'banner' }, 'Tienes acceso solo de lectura. Para crear o unirte a partidas, el dueño de la página tiene que invitarte como Editor.'));
+  else {
+    let goal = 'dominio';
+    const form = joinForm([], async (alias, color) => {
+      const code = randomCode();
+      const s = { code, createdAt: Date.now(), updatedAt: Date.now(), status: 'lobby', host: ME, goal, players: [{ id: ME, alias, color }], rev: 1, log: [] };
+      try { await db.doc('games/' + code).set(s); openGame(code); } catch (e) { toast(errMsg(e)); }
+    }, 'Crear partida');
+    const goals = h('div', { class: 'goals', role: 'radiogroup', 'aria-label': 'Objetivo' },
+      h('label', { class: 'goal' }, h('input', { type: 'radio', name: 'goal', id: 'goal-dominio', checked: true, onchange: () => { goal = 'dominio'; } }),
+        h('span', null, 'Dominio', h('small', null, `Gana quien controle ${DOMINIO} de los ${TER.length} territorios. Unos 30–45 minutos.`))),
+      h('label', { class: 'goal' }, h('input', { type: 'radio', name: 'goal', id: 'goal-total', onchange: () => { goal = 'total'; } }),
+        h('span', null, 'Conquista total', h('small', null, 'Gana el último que quede en pie. Partida larga.'))));
+    form._extra(h('div', { class: 'field', style: 'display:grid;gap:6px;font-weight:600;font-size:14px' }, 'Objetivo', goals));
+    create.append(form);
+  }
+  // practice vs bots
+  const practice = h('div', { class: 'sheet' }, h('h2', null, 'Practicar con bots'));
+  if (CAN_WRITE) {
+    let nb = 2, lvl = 'dificil';
+    const opt = (name, id, label, checked, on) => h('label', { class: 'goal', style: 'padding:8px 12px' }, h('input', { type: 'radio', name, id, checked, onchange: on }), h('span', null, label));
+    practice.append(
+      h('p', { class: 'note' }, 'Una partida solo para ti contra la máquina. Los bots juegan sus turnos solos mientras tengas la partida abierta.'),
+      h('div', { class: 'field', style: 'display:grid;gap:6px;font-weight:600;font-size:14px' }, 'Número de bots',
+        h('div', { class: 'row', role: 'radiogroup', 'aria-label': 'Número de bots' }, [1, 2, 3, 4].map(n => opt('nbots', 'nbots-' + n, String(n), n === 2, () => { nb = n; })))),
+      h('div', { class: 'field', style: 'display:grid;gap:6px;font-weight:600;font-size:14px' }, 'Dificultad',
+        h('div', { class: 'row', role: 'radiogroup', 'aria-label': 'Dificultad' }, opt('lvl', 'lvl-facil', 'Fácil', false, () => { lvl = 'facil'; }), opt('lvl', 'lvl-dificil', 'Difícil', true, () => { lvl = 'dificil'; }))),
+      h('button', { class: 'btn primary', onclick: async e => {
+        e.target.disabled = true;
+        const alias = (store.get('heg-alias') || '').trim().slice(0, 16) || 'Tú';
+        const color = +(store.get('heg-color') || 0);
+        const cols = [0, 1, 2, 3, 4].filter(c => c !== color);
+        const players = [{ id: ME, alias, color }];
+        for (let i = 0; i < nb; i++) players.push({ id: 'bot-' + randomCode(), alias: `${BOT_NAMES[i]} (bot)`, color: cols[i], bot: true, lvl });
+        const code = randomCode();
+        const st = { code, createdAt: Date.now(), updatedAt: Date.now(), status: 'lobby', host: ME, goal: 'dominio', practice: true, players, rev: 1, log: [] };
+        startGame(st);
+        try { await db.doc('games/' + code).set(st); openGame(code); } catch (err) { toast(errMsg(err)); e.target.disabled = false; }
+      } }, 'Empezar práctica'));
+  }
+  create.append(h('p', { class: 'note' }, h('strong', null, 'Para invitar a tus amigos: '), 'crea la partida y pásales su enlace (está en la sala de espera). Solo tienen que abrirlo y escribir su nombre.'));
+
+  // games list
+  const list = h('div', { class: 'sheet' }, h('div', { class: 'section-title' }, h('h2', null, 'Partidas'), h('span', { class: 'eyebrow', id: 'games-count' }, games.length ? String(games.length) : '')));
+  const gl = h('div', { class: 'games', id: 'games-list' });
+  fillGames(gl);
+  list.append(gl);
+
+  const rules = h('div', { class: 'sheet rules' }, h('h2', null, 'Cómo se juega'),
+    h('ol', null,
+      h('li', null, 'El mapa se reparte al azar entre los jugadores, con tropas en cada territorio.'),
+      h('li', null, h('b', null, 'Refuerzos: '), 'al empezar tu turno recibes 1 tropa por cada 3 territorios (mínimo 3), el bonus de cada continente que controles entero y +2 si conquistaste algo en tu turno anterior.'),
+      h('li', null, h('b', null, 'Ataque: '), 'desde un territorio con 2 o más tropas, ataca a un vecino. El atacante tira hasta 3 dados y el defensor hasta 2; se comparan de mayor a menor y el empate lo gana quien defiende. Las líneas discontinuas son rutas por mar.'),
+      h('li', null, h('b', null, 'Movimiento: '), 'un traslado de tropas entre territorios tuyos conectados, y se pasa el turno.'),
+      h('li', null, h('b', null, 'Victoria: '), `controlar ${DOMINIO} de ${TER.length} territorios, o eliminar a todos en modo conquista total.`)),
+    pieceKey(),
+    h('table', { class: 'cont-table' }, h('tbody', null, Object.entries(CONT).map(([c, v]) =>
+      h('tr', null, h('td', null, v.n), h('td', { class: 'note' }, `${TER.filter(t => MAP.t[t].c === c).length} territorios`), h('td', { class: 'num' }, '+' + v.b))))));
+
+  kids.push(h('div', { class: 'lobby-grid' }, h('div', { style: 'display:grid;gap:20px;min-width:0' }, create, CAN_WRITE ? practice : null), h('div', { style: 'display:grid;gap:20px;min-width:0' }, list, rules)));
+  root.replaceChildren(...kids);
+}
+
+// ===================== SERVER API (Cloudflare) =====================
+function makeBackend() {
+  const getId = () => {
+    let id = store.get('heg-id');
+    if (!id) {
+      id = 'p_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join('');
+      store.set('heg-id', id);
+    }
+    return id;
+  };
+  const req = async (method, path, body) => {
+    let r;
+    try {
+      r = await fetch('/api/' + path, { method, cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    } catch { throw { code: 'unavailable' }; }
+    if (r.status === 204) return null;
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 409) throw { code: 'conflict' };
+    if (!r.ok) throw { code: 'unavailable', message: j.error };
+    return j;
+  };
+  const polls = new Set();
+  const snap = st => ({ exists: !!st, data: () => st, metadata: { fromCache: false, hasPendingWrites: false } });
+  const doc = path => {
+    const code = path.split('/')[1];
+    return {
+      async get() { const j = await req('GET', 'games/' + code); return snap(j && j.exists ? j.state : null); },
+      set: st => req('PUT', 'games/' + code, { state: st, baseRev: (st.rev || 1) - 1 }),
+      delete: () => req('DELETE', 'games/' + code),
+      async acquire() { return { acquired: true }; },
+      onSnapshot(next) {
+        const p = { last: null, stop: false, fails: 0, timer: null };
+        const tick = async () => {
+          if (p.stop) return;
+          try {
+            const j = await req('GET', 'games/' + code + (p.last != null ? '?since=' + p.last : ''));
+            if (j && !p.stop) { const st = j.exists ? j.state : null; p.last = st ? st.rev : -1; next(snap(st)); }
+            if (p.fails >= 3) toast('Conexión recuperada.');
+            p.fails = 0;
+          } catch (e) { p.fails++; if (p.fails === 3) toast('Problemas de conexión. Sigo intentándolo…'); }
+          if (!p.stop) p.timer = setTimeout(tick, document.hidden ? 5000 : 1200);
+        };
+        p.resync = () => { p.last = null; clearTimeout(p.timer); tick(); };
+        polls.add(p); tick();
+        return () => { p.stop = true; clearTimeout(p.timer); polls.delete(p); };
+      },
+    };
+  };
+  const collection = () => {
+    const q = {
+      orderBy: () => q, limit: () => q,
+      onSnapshot(next, onErr) {
+        let stop = false, t = null, ok = false;
+        const tick = async () => {
+          if (stop) return;
+          try {
+            const j = await req('GET', 'games'); ok = true;
+            next({ docs: j.games.map(g => ({ data: () => g })), metadata: { fromCache: false } });
+          } catch (e) { if (!ok && onErr) { onErr(e); } }
+          if (!stop) t = setTimeout(tick, GID ? 20000 : 4000);
+        };
+        tick();
+        return () => { stop = true; clearTimeout(t); };
+      },
+    };
+    return q;
+  };
+  return {
+    db: { doc, collection, resync: () => polls.forEach(p => p.resync()) },
+    user: { id: async () => getId(), can: async () => true },
+  };
+}
+
+// ===================== BOOT =====================
+async function boot() {
+  renderLobby();
+  const be = makeBackend();
+  db = be.db; user = be.user;
+  ME = await user.id();
+  CAN_WRITE = true;
+  renderLobby();
+  if (!db || !ME) return;
+  const slow = setTimeout(() => { if (gamesState === 'loading') { gamesState = 'slow'; const gl = document.getElementById('games-list'); if (!GID && gl) fillGames(gl); } }, 10000);
+  db.collection('games').orderBy('updatedAt', 'desc').limit(30).onSnapshot(snap => {
+    if (!snap.metadata.fromCache) clearTimeout(slow);
+    games = snap.docs.map(d => d.data()).filter(g => g && g.code);
+    gamesState = 'ready';
+    const gl = document.getElementById('games-list');
+    if (!GID) { if (gl) fillGames(gl); else renderLobby(); }
+  }, () => { clearTimeout(slow); gamesState = 'error'; if (!GID) renderLobby(); });
+  const m = /^#p-([a-z0-9]{3,12})$/.exec(location.hash);
+  if (m) openGame(m[1]);
+}
+boot();
+</script>
+
+</body>
+</html>
